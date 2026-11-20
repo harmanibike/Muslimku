@@ -22,7 +22,8 @@ class AladhanPrayerTimesService {
     final position = await _getPosition();
     final now = DateTime.now();
     final dateStr = '${now.day.toString().padLeft(2, '0')}-'
-        '${now.month.toString().padLeft(2, '0')}-' '${now.year.toString().padLeft(4, '0')}';
+        '${now.month.toString().padLeft(2, '0')}-'
+        '${now.year.toString().padLeft(4, '0')}';
 
     final lat = position.latitude;
     final lng = position.longitude;
@@ -126,7 +127,7 @@ class AladhanPrayerTimesService {
     if (savedCity != null && savedCity.isNotEmpty) {
       return (savedCity, savedProvince ?? timezone);
     }
-    return ('Lokasi GPS Terdeteksi', '${lat.toStringAsFixed(3)}, ${lng.toStringAsFixed(3)} •$timezone');
+    return ('Lokasi GPS Terdeteksi', '${lat.toStringAsFixed(3)}, ${lng.toStringAsFixed(3)} • $timezone');
   }
 
   static String _addMinutes(String hhmm, int minutesToAdd) {
