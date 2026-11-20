@@ -8,18 +8,17 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PrayerTimesResult {
   final String regionName;
   final String province;
-  final String source;
-  final String date;
   final Map<String, String> times;
+  final bool fromCache;
 
   const PrayerTimesResult({
     required this.regionName,
     required this.province,
-    required this.source,
-    required this.date,
     required this.times,
+    required this.fromCache,
   });
 }
+
 
 class SajadahPrayerTimesService {
   static const String _base = 'https://sajadah.org/api/v1';
