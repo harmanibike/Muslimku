@@ -100,7 +100,7 @@ class SajadahPrayerTimesService {
     return PrayerTimesResult(
       regionName: (timetable['region']?['name'] ?? region['name'] ?? 'Wilayah terdekat').toString(),
       province: (timetable['region']?['province'] ?? region['province'] ?? '').toString(),
-      source: (timetable['authority']?['shortName'] ?? 'Kemenag RI').toString(),
+      
       date: date,
       times: {
         'Imsak': fieldValue('imsak'),
