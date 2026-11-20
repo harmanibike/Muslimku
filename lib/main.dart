@@ -1,3 +1,4 @@
+import 'services/prayer_times_service.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
@@ -89,40 +90,182 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class PrayerPage extends StatefulWidget { const PrayerPage({super.key}); @override State<PrayerPage> createState() => _PrayerPageState(); }
-class _PrayerPageState extends State<PrayerPage> {
-  Map<String, dynamic>? timings; String? place; String? error; bool loading = false;
-  @override void initState() { super.initState(); _load(); }
-  Future<void> _load() async {
-    setState(() { loading = true; error = null; });
-    try {
-      var permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied || permission == LocationPermission.deniedForever) throw Exception('Izin lokasi belum diberikan. Aktifkan izin lokasi untuk menghitung jadwal salat.');
-      final p = await Geolocator.getCurrentPosition();
-      final uri = Uri.parse('https://api.aladhan.com/v1/timings/${DateTime.now().millisecondsSinceEpoch ~/ 1000}?latitude=${p.latitude}&longitude=${p.longitude}&method=20');
-      final res = await http.get(uri).timeout(const Duration(seconds: 20));
-      if (res.statusCode != 200) throw Exception('Server jadwal salat tidak dapat dihubungi.');
-      final json = jsonDecode(res.body) as Map<String, dynamic>;
-      if (json['code'] != 200) throw Exception('Data jadwal salat tidak tersedia.');
-      final data = json['data'] as Map<String, dynamic>;
-      if (!mounted) return;
-      setState(() { timings = Map<String, dynamic>.from(data['timings']); place = data['meta']['timezone']?.toString() ?? 'Lokasi perangkat'; });
-    } catch (e) { if (mounted) setState(() => error = e.toString().replaceFirst('Exception: ', '')); }
-    if (mounted) setState(() => loading = false);
-  }
-  @override Widget build(BuildContext context) => ListView(padding: const EdgeInsets.all(18), children: [
-    Container(padding: const EdgeInsets.all(18), decoration: BoxDecoration(gradient: const LinearGradient(colors: [green, greenDark]), borderRadius: BorderRadius.circular(22)),
-      child: Row(children: [const Icon(Icons.location_on, color: Colors.white, size: 28), const SizedBox(width: 10), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Lokasi perangkat', style: TextStyle(color: Colors.white70)), Text(place ?? 'Ambil lokasi untuk memulai', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold))])), IconButton(onPressed: loading ? null : _load, icon: const Icon(Icons.refresh, color: Colors.white))])),
-    const SizedBox(height: 15), if (loading) const Center(child: Padding(padding: EdgeInsets.all(28), child: CircularProgressIndicator(color: green))),
-    if (error != null) InfoCard(icon: Icons.info_outline, title: 'Jadwal belum tersedia', text: error!),
-    if (timings != null) ...[
-      Text('Jadwal salat hari ini', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800, color: ink)), const SizedBox(height: 10),
-      for (final e in const [('Fajr','Subuh'),('Sunrise','Terbit'),('Dhuhr','Zuhur'),('Asr','Asar'),('Maghrib','Magrib'),('Isha','Isya')])
-        Container(margin: const EdgeInsets.only(bottom: 9), decoration: cardDecoration(), child: ListTile(leading: const Icon(Icons.access_time, color: green), title: Text(e.$2, style: const TextStyle(fontWeight: FontWeight.w700)), trailing: Text((timings![e.$1] ?? '--:--').toString().split(' ').first, style: const TextStyle(fontSize: 17, color: greenDark, fontWeight: FontWeight.w800)))),
-      const Text('Metode perhitungan: Muslim World League (MWL). Periksa pengaturan metode sesuai otoritas setempat bila diperlukan.', style: TextStyle(color: muted, fontSize: 11, height: 1.5)),
-    ]]);
+
+class PrayerPage extends StatefulWidget {
+  const PrayerPage({super.key});
+
+  @override
+  State<PrayerPage> createState() => _PrayerPageState();
 }
+
+class _PrayerPageState extends State<PrayerPage> {
+  PrayerTimesResult? result;
+  String? error;
+  bool loading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    if (!mounted) return;
+
+    setState(() {
+      loading = true;
+      error = null;
+    });
+
+    try {
+      final data =
+          await SajadahPrayerTimesService.loadForCurrentLocation();
+
+      if (!mounted) return;
+
+      setState(() {
+        result = data;
+        loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+
+      setState(() {
+        error = e.toString().replaceFirst('Exception: ', '');
+        loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [green, greenDark],
+            ),
+            borderRadius: BorderRadius.circular(22),
+          ),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.location_on,
+                color: Colors.white,
+                size: 28,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Lokasi perangkat',
+                      style: TextStyle(color: Colors.white70),
+                    ),
+                    Text(
+                      result?.regionName ??
+                          'Mendeteksi lokasi perangkat...',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    if (result != null)
+                      Text(
+                        result!.province,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 12,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: loading ? null : _load,
+                icon: const Icon(
+                  Icons.refresh,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 15),
+
+        if (loading)
+          const Center(
+            child: Padding(
+              padding: EdgeInsets.all(28),
+              child: CircularProgressIndicator(color: green),
+            ),
+          ),
+
+        if (error != null)
+          InfoCard(
+            icon: Icons.info_outline,
+            title: 'Jadwal belum tersedia',
+            text: error!,
+          ),
+
+        if (result != null) ...[
+          Text(
+            'Jadwal salat hari ini',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: ink,
+                ),
+          ),
+
+          const SizedBox(height: 10),
+
+          for (final entry in result!.times.entries)
+            Container(
+              margin: const EdgeInsets.only(bottom: 9),
+              decoration: cardDecoration(),
+              child: ListTile(
+                leading: const Icon(
+                  Icons.access_time,
+                  color: green,
+                ),
+                title: Text(
+                  entry.key,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                trailing: Text(
+                  entry.value,
+                  style: const TextStyle(
+                    fontSize: 17,
+                    color: greenDark,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ),
+
+          Text(
+            result!.fromCache
+                ? 'Jadwal menggunakan data tersimpan (offline).'
+                : 'Sumber jadwal: Sajadah Open Data.',
+            style: const TextStyle(
+              color: muted,
+              fontSize: 11,
+              height: 1.5,
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 
 class QuranPage extends StatefulWidget { const QuranPage({super.key}); @override State<QuranPage> createState() => _QuranPageState(); }
 class _QuranPageState extends State<QuranPage> {
