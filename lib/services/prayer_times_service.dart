@@ -18,15 +18,13 @@ class PrayerTimesResult {
   });
 }
 
-class SajadahPrayerTimesService {
+class AladhanPrayerTimesService {
   static Future<PrayerTimesResult> loadForCurrentLocation() async {
     final position = await _getPosition();
     final now = DateTime.now();
 
-    // Format tanggal untuk Aladhan API: DD-MM-YYYY
     final dateStr = '${now.day.toString().padLeft(2, '0')}-'
-        '${now.month.toString().padLeft(2, '0')}-'
-        '${now.year.toString().padLeft(4, '0')}';
+        '${now.month.toString().padLeft(2, '0')}-' '${now.year.toString().padLeft(4, '0')}';
 
     final lat = position.latitude;
     final lng = position.longitude;
@@ -75,9 +73,10 @@ class SajadahPrayerTimesService {
     final meta = data['meta'] as Map<String, dynamic>? ?? {};
     final timezone = (meta['timezone'] ?? 'Asia/Jakarta').toString();
 
+    final place = await _getCityAndProvince(lat, lng, prefs, timezone);
+
     String cleanTime(String key) {
       final raw = timings[key]?.toString() ?? '--:--';
-      // Hapus embel-embel zona waktu jika ada, misal "04:15 (WIB)" -> "04:15"
       return raw.split(' ').first;
     }
 
@@ -85,8 +84,8 @@ class SajadahPrayerTimesService {
     final dhuha = _addMinutes(sunrise, 20);
 
     return PrayerTimesResult(
-      regionName: 'Lokasi GPS Terdeteksi',
-      province: '${lat.toStringAsFixed(3)}, ${lng.toStringAsFixed(3)} • $timezone',
+      regionName: place.$1,
+      province: place.$2,
       fromCache: fromCache,
       times: {
         'Imsak': cleanTime('Imsak'),
@@ -98,6 +97,57 @@ class SajadahPrayerTimesService {
         'Magrib': cleanTime('Maghrib'),
         'Isya': cleanTime('Isha'),
       },
+    );
+  }
+
+  static Future<(String, String)> _getCityAndProvince(
+    double lat,
+    double lng,
+    SharedPreferences prefs,
+    String timezone,
+  ) async {
+    try {
+      final uri = Uri.parse(
+        'https://api.bigdatacloud.net/data/reverse-geocode-client'
+        '?latitude=$lat&longitude=$lng&localityLanguage=id',
+      );
+      final response = await http.get(
+        uri,
+        headers: {'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded is Map<String, dynamic>) {
+          final city = (decoded['city']?.toString().trim().isNotEmpty == true)
+              ? decoded['city'].toString().trim()
+              : (decoded['locality']?.toString().trim().isNotEmpty == true)
+                  ? decoded['locality'].toString().trim()
+                  : 'Lokasi GPS Terdeteksi';
+
+          final province =
+              (decoded['principalSubdivision']?.toString().trim().isNotEmpty == true)
+                  ? decoded['principalSubdivision'].toString().trim()
+                  : timezone;
+
+          await prefs.setString('last_city', city);
+          await prefs.setString('last_province', province);
+          return (city, province);
+        }
+      }
+    } catch (_) {
+      // Gunakan cache jika gagal mengambil nama kota
+    }
+
+    final savedCity = prefs.getString('last_city');
+    final savedProvince = prefs.getString('last_province');
+    if (savedCity != null && savedCity.isNotEmpty) {
+      return (savedCity, savedProvince ?? timezone);
+    }
+
+    return (
+      'Lokasi GPS Terdeteksi',
+      '${lat.toStringAsFixed(3)}, ${lng.toStringAsFixed(3)} •$timezone',
     );
   }
 
