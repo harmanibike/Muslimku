@@ -258,7 +258,8 @@ class HomePage extends StatelessWidget {
                   child: const Text('ASSALAMU’ALAIKUM', style: TextStyle(color: Colors.white, letterSpacing: 1.3, fontSize: 10, fontWeight: FontWeight.w700)),
                 ),
                 const SizedBox(height: 14),
-                Text('${_greeting(now.hour)},\ndi Muslimku', style: const TextStyle(color: Colors.white, fontSize: 26, height: 1.2, fontWeight: FontWeight.w800)),
+                Text('${_greeting(now.hour)},
+di Muslimku', style: const TextStyle(color: Colors.white, fontSize: 26, height: 1.2, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),
                 Text('Teman ibadah harian Anda dengan jadwal salat, Al-Qur’an, dan doa.', style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13, height: 1.45)),
               ]),
@@ -516,7 +517,8 @@ class _QuranPageState extends State<QuranPage> {
       if (loading)
         const Expanded(child: Center(child: CircularProgressIndicator(color: green)))
       else if (error != null)
-        Expanded(child: Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('$error\nPeriksa koneksi internet lalu buka ulang halaman.', textAlign: TextAlign.center))))
+        Expanded(child: Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('$error
+Periksa koneksi internet lalu buka ulang halaman.', textAlign: TextAlign.center))))
       else
         Expanded(
           child: RefreshIndicator(
@@ -543,7 +545,15 @@ class _QuranPageState extends State<QuranPage> {
                     title: Text(surahName, style: const TextStyle(fontWeight: FontWeight.w800, color: ink)),
                     subtitle: Text('${s['arti'] ?? ''} • ${s['jumlahAyat'] ?? ''} ayat', style: const TextStyle(color: muted, fontSize: 12)),
                     trailing: Text(s['nama']?.toString() ?? '', style: const TextStyle(fontSize: 20, color: greenDark)),
-                    onTap: () => _push(context, surahName, SurahPage(number: s['nomor'] as int, name: surahName)),
+                    onTap: () => _push(
+                      context,
+                      surahName,
+                      SurahPage(
+                        number: s['nomor'] as int,
+                        name: surahName,
+                        allSurahs: surahs,
+                      ),
+                    ),
                   ),
                 );
               },
@@ -557,12 +567,22 @@ class _QuranPageState extends State<QuranPage> {
 class SurahPage extends StatefulWidget {
   final int number;
   final String name;
-  const SurahPage({super.key, required this.number, required this.name});
+  final List<dynamic> allSurahs;
+
+  const SurahPage({
+    super.key,
+    required this.number,
+    required this.name,
+    this.allSurahs = const [],
+  });
+
   @override
   State<SurahPage> createState() => _SurahPageState();
 }
 
 class _SurahPageState extends State<SurahPage> {
+  late int _currentNumber;
+  late String _currentName;
   Map<String, dynamic>? data;
   String? error;
   bool loading = true;
@@ -572,19 +592,82 @@ class _SurahPageState extends State<SurahPage> {
   @override
   void initState() {
     super.initState();
+    _currentNumber = widget.number;
+    _currentName = widget.name;
     _get();
-    player.onPlayerComplete.listen((_) { if (mounted) setState(() => playingQari = null); });
+    player.onPlayerComplete.listen((_) {
+      if (mounted) setState(() => playingQari = null);
+    });
   }
 
   Future<void> _get() async {
     try {
-      final r = await http.get(Uri.parse('https://equran.id/api/v2/surat/${widget.number}')).timeout(const Duration(seconds: 20));
+      await player.stop();
+      if (!mounted) return;
+      setState(() {
+        loading = true;
+        error = null;
+        playingQari = null;
+      });
+      final r = await http
+          .get(Uri.parse('https://equran.id/api/v2/surat/$_currentNumber'))
+          .timeout(const Duration(seconds: 20));
       final j = jsonDecode(r.body);
-      if (r.statusCode != 200 || j['data'] == null) throw Exception('Konten surah tidak tersedia.');
-      if (mounted) setState(() { data = j['data']; loading = false; });
+      if (r.statusCode != 200 || j['data'] == null) {
+        throw Exception('Konten surah tidak tersedia.');
+      }
+      if (!mounted) return;
+      final fetchedName = j['data']['namaLatin']?.toString() ?? _currentName;
+      setState(() {
+        data = j['data'];
+        _currentName = fetchedName;
+        loading = false;
+      });
+      _syncShellTitle(fetchedName);
     } catch (e) {
-      if (mounted) setState(() { error = e.toString(); loading = false; });
+      if (mounted) {
+        setState(() {
+          error = e.toString();
+          loading = false;
+        });
+      }
     }
+  }
+
+  void _syncShellTitle(String title) {
+    final shell = context.findAncestorStateOfType<_MainShellState>();
+    if (shell != null && shell.subPages.isNotEmpty) {
+      shell.setState(() {
+        final lastIdx = shell.subPages.length - 1;
+        shell.subPages[lastIdx] = (title, shell.subPages[lastIdx].$2);
+      });
+    }
+  }
+
+  void _goToSurah(int targetNumber) {
+    if (targetNumber < 1 || targetNumber > 114 || loading) return;
+    HapticFeedback.selectionClick();
+    _currentNumber = targetNumber;
+    _currentName = _surahName(targetNumber) ?? 'Surah $targetNumber';
+    _get();
+  }
+
+  String? _surahName(int number) {
+    for (final item in widget.allSurahs) {
+      if (item is Map && item['nomor'] == number) {
+        return item['namaLatin']?.toString();
+      }
+    }
+    return null;
+  }
+
+  String _qariLabel(String key, int index) {
+    final clean = key.trim();
+    if (clean.isEmpty) return 'Qari ${'0${index + 1}'}';
+    if (RegExp(r'^\d+$').hasMatch(clean)) {
+      return 'Qari ${clean.padLeft(2, '0')}';
+    }
+    return clean;
   }
 
   @override
@@ -595,63 +678,157 @@ class _SurahPageState extends State<SurahPage> {
 
   @override
   Widget build(BuildContext context) {
-    if (loading) return const Center(child: CircularProgressIndicator(color: green));
-    if (error != null) return Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(error!, textAlign: TextAlign.center)));
+    if (loading) {
+      return const Center(child: CircularProgressIndicator(color: green));
+    }
+    if (error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Text(error!, textAlign: TextAlign.center),
+        ),
+      );
+    }
+
+    final audioEntries = data!['audioFull'] != null
+        ? (data!['audioFull'] as Map<String, dynamic>).entries.take(4).toList()
+        : <MapEntry<String, dynamic>>[];
+
+    final prevName = _surahName(_currentNumber - 1);
+    final nextName = _surahName(_currentNumber + 1);
+
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
       children: [
-        if (data!['audioFull'] != null) ...[
+        if (audioEntries.isNotEmpty) ...[
           Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: cardDecoration(),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
-                const Icon(Icons.headphones_rounded, color: green, size: 20),
-                const SizedBox(width: 8),
-                const Text('Audio Murottal', style: TextStyle(fontWeight: FontWeight.w800, color: ink)),
-                const Spacer(),
-                if (playingQari != null)
-                  TextButton.icon(
-                    onPressed: () async { await player.stop(); if (mounted) setState(() => playingQari = null); },
-                    icon: const Icon(Icons.stop_rounded, size: 18, color: Colors.redAccent),
-                    label: const Text('Stop', style: TextStyle(color: Colors.redAccent)),
-                  ),
-              ]),
-              const SizedBox(height: 10),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: (data!['audioFull'] as Map<String, dynamic>).entries.take(4).map((e) {
-                  final isPlaying = playingQari == e.key;
-                  return ChoiceChip(
-                    selected: isPlaying,
-                    selectedColor: green,
-                    backgroundColor: greenSoft,
-                    side: BorderSide.none,
-                    labelStyle: TextStyle(color: isPlaying ? Colors.white : greenDark, fontWeight: FontWeight.w700),
-                    avatar: Icon(isPlaying ? Icons.graphic_eq_rounded : Icons.play_arrow_rounded, size: 18, color: isPlaying ? Colors.white : greenDark),
-                    label: Text('Qari ${e.key}'),
-                    onSelected: (_) async {
-                      try {
-                        await player.stop();
-                        if (isPlaying) {
-                          setState(() => playingQari = null);
-                        } else {
-                          setState(() => playingQari = e.key);
-                          await player.play(UrlSource(e.value.toString()));
-                        }
-                      } catch (_) {
-                        if (mounted) {
-                          setState(() => playingQari = null);
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Audio gagal diputar. Periksa koneksi.')));
-                        }
-                      }
-                    },
-                  );
-                }).toList(),
-              ),
-            ]),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.headphones_rounded, color: green, size: 19),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Audio Murottal',
+                        style: TextStyle(fontWeight: FontWeight.w800, color: ink),
+                      ),
+                    ),
+                    if (playingQari != null)
+                      InkWell(
+                        borderRadius: BorderRadius.circular(10),
+                        onTap: () async {
+                          await player.stop();
+                          if (mounted) setState(() => playingQari = null);
+                        },
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.stop_rounded, size: 16, color: Colors.redAccent),
+                              SizedBox(width: 3),
+                              Text(
+                                'Stop',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.redAccent,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    const gap = 8.0;
+                    final cols = constraints.maxWidth < 360 ? 2 : 4;
+                    final itemWidth =
+                        (constraints.maxWidth - gap * (cols - 1)) / cols;
+
+                    return Wrap(
+                      spacing: gap,
+                      runSpacing: gap,
+                      children: List.generate(audioEntries.length, (idx) {
+                        final entry = audioEntries[idx];
+                        final isPlaying = playingQari == entry.key;
+                        final label = _qariLabel(entry.key, idx);
+
+                        return SizedBox(
+                          width: itemWidth,
+                          child: Material(
+                            color: isPlaying ? green : greenSoft,
+                            borderRadius: BorderRadius.circular(12),
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(12),
+                              onTap: () async {
+                                try {
+                                  await player.stop();
+                                  if (isPlaying) {
+                                    setState(() => playingQari = null);
+                                  } else {
+                                    setState(() => playingQari = entry.key);
+                                    await player.play(UrlSource(entry.value.toString()));
+                                  }
+                                } catch (_) {
+                                  if (mounted) {
+                                    setState(() => playingQari = null);
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Audio gagal diputar. Periksa koneksi.'),
+                                      ),
+                                    );
+                                  }
+                                }
+                              },
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 8,
+                                  vertical: 9,
+                                ),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(
+                                      isPlaying
+                                          ? Icons.graphic_eq_rounded
+                                          : Icons.play_arrow_rounded,
+                                      size: 16,
+                                      color: isPlaying ? Colors.white : greenDark,
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        label,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: isPlaying ? Colors.white : greenDark,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 14),
         ],
@@ -660,24 +837,178 @@ class _SurahPageState extends State<SurahPage> {
             margin: const EdgeInsets.only(bottom: 12),
             padding: const EdgeInsets.all(18),
             decoration: cardDecoration(),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(color: greenSoft, borderRadius: BorderRadius.circular(10)),
-                  child: Text('Ayat ${a['nomorAyat']}', style: const TextStyle(color: greenDark, fontWeight: FontWeight.w800, fontSize: 12)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: greenSoft,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Ayat ${a['nomorAyat']}',
+                      style: const TextStyle(
+                        color: greenDark,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  a['teksArab']?.toString() ?? '',
+                  textAlign: TextAlign.right,
+                  textDirection: TextDirection.rtl,
+                  style: const TextStyle(fontSize: 28, height: 2.0, color: ink),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  a['teksLatin']?.toString() ?? '',
+                  style: const TextStyle(
+                    color: greenDark,
+                    fontStyle: FontStyle.italic,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  a['teksIndonesia']?.toString() ?? '',
+                  style: const TextStyle(color: muted, height: 1.55),
+                ),
+              ],
+            ),
+          ),
+        const SizedBox(height: 6),
+        Row(
+          children: [
+            Expanded(
+              child: _SurahNavButton(
+                title: 'Sebelumnya',
+                subtitle: _currentNumber > 1
+                    ? (prevName ?? 'Surah ${_currentNumber - 1}')
+                    : 'Awal Qur’an',
+                icon: Icons.chevron_left_rounded,
+                enabled: _currentNumber > 1,
+                isNext: false,
+                onTap: () => _goToSurah(_currentNumber - 1),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: _SurahNavButton(
+                title: 'Selanjutnya',
+                subtitle: _currentNumber < 114
+                    ? (nextName ?? 'Surah ${_currentNumber + 1}')
+                    : 'Akhir Qur’an',
+                icon: Icons.chevron_right_rounded,
+                enabled: _currentNumber < 114,
+                isNext: true,
+                onTap: () => _goToSurah(_currentNumber + 1),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _SurahNavButton extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool enabled;
+  final bool isNext;
+  final VoidCallback onTap;
+
+  const _SurahNavButton({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.enabled,
+    required this.isNext,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: enabled ? Colors.white : const Color(0xFFF0F4F2),
+      borderRadius: BorderRadius.circular(18),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: enabled ? onTap : null,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: enabled ? const Color(0xFFE7EFEA) : const Color(0xFFEAEFEA),
+            ),
+            boxShadow: enabled
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ]
+                : null,
+          ),
+          child: Row(
+            children: [
+              if (!isNext) ...[
+                Icon(
+                  icon,
+                  size: 20,
+                  color: enabled ? green : muted.withOpacity(0.45),
+                ),
+                const SizedBox(width: 6),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      isNext ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: enabled ? green : muted.withOpacity(0.5),
+                      ),
+                    ),
+                    Text(
+                      subtitle,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: enabled ? ink : muted.withOpacity(0.5),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 14),
-              Text(a['teksArab']?.toString() ?? '', textAlign: TextAlign.right, textDirection: TextDirection.rtl, style: const TextStyle(fontSize: 28, height: 2.0, color: ink)),
-              const SizedBox(height: 14),
-              Text(a['teksLatin']?.toString() ?? '', style: const TextStyle(color: greenDark, fontStyle: FontStyle.italic, height: 1.5)),
-              const SizedBox(height: 8),
-              Text(a['teksIndonesia']?.toString() ?? '', style: const TextStyle(color: muted, height: 1.55)),
-            ]),
+              if (isNext) ...[
+                const SizedBox(width: 6),
+                Icon(
+                  icon,
+                  size: 20,
+                  color: enabled ? green : muted.withOpacity(0.45),
+                ),
+              ],
+            ],
           ),
-      ],
+        ),
+      ),
     );
   }
 }
@@ -960,9 +1291,12 @@ class HadithPage extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(18),
         children: const [
-          InfoCard(icon: Icons.menu_book_rounded, title: 'Niat', text: '“Sesungguhnya amal itu tergantung niatnya.”\nHR. Bukhari dan Muslim.'),
-          InfoCard(icon: Icons.menu_book_rounded, title: 'Berkata baik', text: '“Barang siapa beriman kepada Allah dan hari akhir, hendaklah berkata baik atau diam.”\nHR. Bukhari dan Muslim.'),
-          InfoCard(icon: Icons.menu_book_rounded, title: 'Memudahkan', text: '“Mudahkanlah dan jangan mempersulit, berilah kabar gembira dan jangan membuat orang lari.”\nHR. Bukhari dan Muslim.'),
+          InfoCard(icon: Icons.menu_book_rounded, title: 'Niat', text: '“Sesungguhnya amal itu tergantung niatnya.”
+HR. Bukhari dan Muslim.'),
+          InfoCard(icon: Icons.menu_book_rounded, title: 'Berkata baik', text: '“Barang siapa beriman kepada Allah dan hari akhir, hendaklah berkata baik atau diam.”
+HR. Bukhari dan Muslim.'),
+          InfoCard(icon: Icons.menu_book_rounded, title: 'Memudahkan', text: '“Mudahkanlah dan jangan mempersulit, berilah kabar gembira dan jangan membuat orang lari.”
+HR. Bukhari dan Muslim.'),
         ],
       );
 }
