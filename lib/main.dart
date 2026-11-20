@@ -150,15 +150,17 @@ class _MainShellState extends State<MainShell> {
             ),
             const SizedBox(width: 12),
             Expanded(
-              child: AnimatedSwitcher(
-                duration: const Duration(milliseconds: 220),
+              child: Align(
                 alignment: Alignment.centerLeft,
-                child: Text(
-                  currentTitle,
-                  key: ValueKey(currentTitle),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: ink),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  child: Text(
+                    currentTitle,
+                    key: ValueKey(currentTitle),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: ink),
+                  ),
                 ),
               ),
             ),
