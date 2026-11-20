@@ -1,8 +1,254 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 
+import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_compass/flutter_compass.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
+void main() => runApp(const MuslimkuApp());
+
+const Color green = Color(0xFF167A4A);
+const Color greenDark = Color(0xFF105D39);
+const Color greenSoft = Color(0xFFE8F3EC);
+const Color pageBg = Color(0xFFF6F8F6);
+const Color ink = Color(0xFF20332A);
+const Color muted = Color(0xFF718078);
+
+class MuslimkuApp extends StatelessWidget {
+  const MuslimkuApp({super.key});
+  @override
+  Widget build(BuildContext context) => MaterialApp(
+        title: 'Muslimku',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: true,
+          scaffoldBackgroundColor: pageBg,
+          colorScheme: ColorScheme.fromSeed(seedColor: green),
+          appBarTheme: const AppBarTheme(
+            backgroundColor: pageBg,
+            foregroundColor: ink,
+            elevation: 0,
+          ),
+        ),
+        home: const MainShell(),
+      );
+}
+
+class MainShell extends StatefulWidget {
+  const MainShell({super.key});
+  @override
+  State<MainShell> createState() => _MainShellState();
+}
+
+class _MainShellState extends State<MainShell> {
+  int index = 0;
+  final pages = const [
+    HomePage(),
+    PrayerPage(),
+    QuranPage(),
+    LibraryPage(),
+    MorePage(),
+  ];
+  final titles = const [
+    'Muslimku',
+    'Waktu Salat',
+    'Al-Qur’an',
+    'Perpustakaan',
+    'Lainnya',
+  ];
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        appBar: AppBar(
+          toolbarHeight: 66,
+          title: Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: greenSoft,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(Icons.nightlight_round, color: green),
+              ),
+              const SizedBox(width: 10),
+              Text(
+                titles[index],
+                style: const TextStyle(
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                  color: ink,
+                ),
+              ),
+            ],
+          ),
+        ),
+        body: IndexedStack(index: index, children: pages),
+        bottomNavigationBar: NavigationBar(
+          height: 70,
+          selectedIndex: index,
+          onDestinationSelected: (v) => setState(() => index = v),
+          backgroundColor: Colors.white,
+          indicatorColor: greenSoft,
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined),
+              selectedIcon: Icon(Icons.home, color: green),
+              label: 'Beranda',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.access_time),
+              selectedIcon: Icon(Icons.access_time_filled, color: green),
+              label: 'Salat',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.menu_book_outlined),
+              selectedIcon: Icon(Icons.menu_book, color: green),
+              label: 'Qur’an',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.auto_stories_outlined),
+              selectedIcon: Icon(Icons.auto_stories, color: green),
+              label: 'Kitab',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.grid_view_outlined),
+              selectedIcon: Icon(Icons.grid_view, color: green),
+              label: 'Lainnya',
+            ),
+          ],
+        ),
+      );
+}
+
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    return ListView(
+      padding: const EdgeInsets.all(18),
+      children: [
+        Text(
+          '${_weekday(now.weekday)},${now.day} ${_month(now.month)}${now.year}',
+          style: const TextStyle(color: muted, fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 14),
+        Container(
+          padding: const EdgeInsets.all(22),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            gradient: const LinearGradient(
+              colors: [Color(0xFF218A59), greenDark],
+            ),
+          ),
+          child: const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'ASSALAMU’ALAIKUM',
+                style: TextStyle(
+                  color: Color(0xFFD8F0E1),
+                  letterSpacing: 1.4,
+                  fontSize: 11,
+                ),
+              ),
+              SizedBox(height: 12),
+              Text(
+                'Selamat datang\ndi Muslimku',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'Teman ibadah Anda setiap hari.',
+                style: TextStyle(color: Colors.white70),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        const SectionTitle('Mulai ibadah hari ini'),
+        const SizedBox(height: 12),
+        GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: 3,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: .95,
+          children: [
+            QuickTile(
+              'Jadwal salat',
+              Icons.access_time,
+              () => _push(
+                context,
+                Scaffold(
+                  appBar: AppBar(title: const Text('Waktu Salat')),
+                  body: const PrayerPage(),
+                ),
+              ),
+            ),
+            QuickTile(
+              'Al-Qur’an',
+              Icons.menu_book,
+              () => _push(
+                context,
+                Scaffold(
+                  appBar: AppBar(title: const Text('Al-Qur’an')),
+                  body: const QuranPage(),
+                ),
+              ),
+            ),
+            QuickTile(
+              'Murottal',
+              Icons.headphones,
+              () => _push(
+                context,
+                Scaffold(
+                  appBar: AppBar(title: const Text('Murottal')),
+                  body: const QuranPage(),
+                ),
+              ),
+            ),
+            QuickTile(
+              'Arah kiblat',
+              Icons.explore,
+              () => _push(context, const QiblaPage()),
+            ),
+            QuickTile(
+              'Tasbih',
+              Icons.fingerprint,
+              () => _push(context, const TasbihPage()),
+            ),
+            QuickTile(
+              'Doa harian',
+              Icons.volunteer_activism,
+              () => _push(context, const DuaPage()),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        const SectionTitle('Pengingat'),
+        const SizedBox(height: 9),
+        const InfoCard(
+          icon: Icons.notifications_active_outlined,
+          title: 'Jaga waktu salat',
+          text:
+              'Aktifkan izin notifikasi di perangkat untuk menerima pengingat ibadah. Jadwal salat dihitung dari lokasi perangkat.',
+        ),
+      ],
+    );
+  }
+}
 
 class PrayerTimesResult {
   final String regionName;
@@ -46,7 +292,9 @@ class AladhanPrayerTimesService {
       ).timeout(const Duration(seconds: 20));
 
       if (response.statusCode != 200) {
-        throw Exception('Server jadwal mengembalikan HTTP ${response.statusCode}.');
+        throw Exception(
+          'Server jadwal mengembalikan HTTP ${response.statusCode}.',
+        );
       }
 
       final decoded = jsonDecode(response.body);
@@ -56,166 +304,5 @@ class AladhanPrayerTimesService {
 
       data = Map<String, dynamic>.from(decoded['data'] as Map);
       await prefs.setString(cacheKey, jsonEncode(data));
-    } catch (e) {
-      final cached = prefs.getString(cacheKey);
-      if (cached == null) {
-        throw Exception('Gagal memuat jadwal salat: $e');
-      }
-      final decoded = jsonDecode(cached);
-      if (decoded is! Map<String, dynamic>) {
-        throw Exception('Data offline rusak. Sambungkan internet lalu coba lagi.');
-      }
-      data = decoded;
-      fromCache = true;
-    }
-
-    final timings = data['timings'] as Map<String, dynamic>? ?? {};
-    final meta = data['meta'] as Map<String, dynamic>? ?? {};
-    final timezone = (meta['timezone'] ?? 'Asia/Jakarta').toString();
-
-    final place = await _getCityAndProvince(lat, lng, prefs, timezone);
-
-    String cleanTime(String key) {
-      final raw = timings[key]?.toString() ?? '--:--';
-      return raw.split(' ').first;
-    }
-
-    final sunrise = cleanTime('Sunrise');
-    final dhuha = _addMinutes(sunrise, 20);
-
-    return PrayerTimesResult(
-      regionName: place.$1,
-      province: place.$2,
-      fromCache: fromCache,
-      times: {
-        'Imsak': cleanTime('Imsak'),
-        'Subuh': cleanTime('Fajr'),
-        'Terbit': sunrise,
-        'Duha': dhuha,
-        'Zuhur': cleanTime('Dhuhr'),
-        'Asar': cleanTime('Asr'),
-        'Magrib': cleanTime('Maghrib'),
-        'Isya': cleanTime('Isha'),
-      },
-    );
-  }
-
-  static Future<(String, String)> _getCityAndProvince(
-    double lat,
-    double lng,
-    SharedPreferences prefs,
-    String timezone,
-  ) async {
-    try {
-      final uri = Uri.parse(
-        'https://api.bigdatacloud.net/data/reverse-geocode-client'
-        '?latitude=$lat&longitude=$lng&localityLanguage=id',
-      );
-      final response = await http.get(
-        uri,
-        headers: {'Accept': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        if (decoded is Map<String, dynamic>) {
-          final city = (decoded['city']?.toString().trim().isNotEmpty == true)
-              ? decoded['city'].toString().trim()
-              : (decoded['locality']?.toString().trim().isNotEmpty == true)
-                  ? decoded['locality'].toString().trim()
-                  : 'Lokasi GPS Terdeteksi';
-
-          final province =
-              (decoded['principalSubdivision']?.toString().trim().isNotEmpty == true)
-                  ? decoded['principalSubdivision'].toString().trim()
-                  : timezone;
-
-          await prefs.setString('last_city', city);
-          await prefs.setString('last_province', province);
-          return (city, province);
-        }
-      }
-    } catch (_) {
-      // Gunakan cache jika gagal mengambil nama kota
-    }
-
-    final savedCity = prefs.getString('last_city');
-    final savedProvince = prefs.getString('last_province');
-    if (savedCity != null && savedCity.isNotEmpty) {
-      return (savedCity, savedProvince ?? timezone);
-    }
-
-    return (
-      'Lokasi GPS Terdeteksi',
-      '${lat.toStringAsFixed(3)}, ${lng.toStringAsFixed(3)} •$timezone',
-    );
-  }
-
-  static String _addMinutes(String hhmm, int minutesToAdd) {
-    final parts = hhmm.split(':');
-    if (parts.length != 2) return '--:--';
-    final h = int.tryParse(parts[0]);
-    final m = int.tryParse(parts[1]);
-    if (h == null || m == null) return '--:--';
-    final total = (h * 60 + m + minutesToAdd) % (24 * 60);
-    final newH = (total ~/ 60).toString().padLeft(2, '0');
-    final newM = (total % 60).toString().padLeft(2, '0');
-    return '$newH:$newM';
-  }
-
-  static Future<Position> _getPosition() async {
-    if (!await Geolocator.isLocationServiceEnabled()) {
-      throw Exception('GPS belum aktif. Aktifkan lokasi perangkat lalu coba lagi.');
-    }
-
-    var permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-    }
-    if (permission == LocationPermission.denied ||
-        permission == LocationPermission.deniedForever) {
-      throw Exception('Izin lokasi belum diberikan. Izinkan Muslimku mengakses lokasi.');
-    }
-
-    final prefs = await SharedPreferences.getInstance();
-
-    final lastKnown = await Geolocator.getLastKnownPosition();
-    if (lastKnown != null) {
-      await prefs.setDouble('last_lat', lastKnown.latitude);
-      await prefs.setDouble('last_lng', lastKnown.longitude);
-      return lastKnown;
-    }
-
-    try {
-      final pos = await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(
-          accuracy: LocationAccuracy.low,
-          timeLimit: Duration(seconds: 12),
-        ),
-      );
-      await prefs.setDouble('last_lat', pos.latitude);
-      await prefs.setDouble('last_lng', pos.longitude);
-      return pos;
-    } catch (_) {
-      final savedLat = prefs.getDouble('last_lat');
-      final savedLng = prefs.getDouble('last_lng');
-      if (savedLat != null && savedLng != null) {
-        return Position(
-          latitude: savedLat,
-          longitude: savedLng,
-          timestamp: DateTime.now(),
-          accuracy: 0,
-          altitude: 0,
-          altitudeAccuracy: 0,
-          heading: 0,
-          headingAccuracy: 0,
-          speed: 0,
-          speedAccuracy: 0,
-        );
-      }
-      throw Exception(
-        'Sinyal GPS sulit didapat. Coba buka Google Maps sebentar atau pindah ke area lebih terbuka lalu tekan refresh.',
-      );
-    }
-  }
-}
+    } catch (
+      
