@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,7 +21,6 @@ class AladhanPrayerTimesService {
   static Future<PrayerTimesResult> loadForCurrentLocation() async {
     final position = await _getPosition();
     final now = DateTime.now();
-
     final dateStr = '${now.day.toString().padLeft(2, '0')}-'
         '${now.month.toString().padLeft(2, '0')}-' '${now.year.toString().padLeft(4, '0')}';
 
@@ -35,32 +33,26 @@ class AladhanPrayerTimesService {
     var fromCache = false;
 
     try {
-      // method=20 adalah metode Kementerian Agama Republik Indonesia (KEMENAG)
       final uri = Uri.parse(
         'https://api.aladhan.com/v1/timings/$dateStr'
         '?latitude=$lat&longitude=$lng&method=20',
       );
-      final response = await http.get(
-        uri,
-        headers: {'Accept': 'application/json'},
-      ).timeout(const Duration(seconds: 20));
+      final response = await http
+          .get(uri, headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 20));
 
       if (response.statusCode != 200) {
         throw Exception('Server jadwal mengembalikan HTTP ${response.statusCode}.');
       }
-
       final decoded = jsonDecode(response.body);
       if (decoded is! Map<String, dynamic> || decoded['data'] is! Map) {
-        throw Exception('Format data jadwal dari server tidak sesuai.');
+        throw Exception('Format data jadwal tidak sesuai.');
       }
-
       data = Map<String, dynamic>.from(decoded['data'] as Map);
       await prefs.setString(cacheKey, jsonEncode(data));
     } catch (e) {
       final cached = prefs.getString(cacheKey);
-      if (cached == null) {
-        throw Exception('Gagal memuat jadwal salat: $e');
-      }
+      if (cached == null) throw Exception('Gagal memuat jadwal salat: $e');
       final decoded = jsonDecode(cached);
       if (decoded is! Map<String, dynamic>) {
         throw Exception('Data offline rusak. Sambungkan internet lalu coba lagi.');
@@ -72,30 +64,24 @@ class AladhanPrayerTimesService {
     final timings = data['timings'] as Map<String, dynamic>? ?? {};
     final meta = data['meta'] as Map<String, dynamic>? ?? {};
     final timezone = (meta['timezone'] ?? 'Asia/Jakarta').toString();
-
     final place = await _getCityAndProvince(lat, lng, prefs, timezone);
 
-    String cleanTime(String key) {
-      final raw = timings[key]?.toString() ?? '--:--';
-      return raw.split(' ').first;
-    }
-
-    final sunrise = cleanTime('Sunrise');
-    final dhuha = _addMinutes(sunrise, 20);
+    String clean(String key) => (timings[key]?.toString() ?? '--:--').split(' ').first;
+    final sunrise = clean('Sunrise');
 
     return PrayerTimesResult(
       regionName: place.$1,
       province: place.$2,
       fromCache: fromCache,
       times: {
-        'Imsak': cleanTime('Imsak'),
-        'Subuh': cleanTime('Fajr'),
+        'Imsak': clean('Imsak'),
+        'Subuh': clean('Fajr'),
         'Terbit': sunrise,
-        'Duha': dhuha,
-        'Zuhur': cleanTime('Dhuhr'),
-        'Asar': cleanTime('Asr'),
-        'Magrib': cleanTime('Maghrib'),
-        'Isya': cleanTime('Isha'),
+        'Duha': _addMinutes(sunrise, 20),
+        'Zuhur': clean('Dhuhr'),
+        'Asar': clean('Asr'),
+        'Magrib': clean('Maghrib'),
+        'Isya': clean('Isha'),
       },
     );
   }
@@ -111,10 +97,9 @@ class AladhanPrayerTimesService {
         'https://api.bigdatacloud.net/data/reverse-geocode-client'
         '?latitude=$lat&longitude=$lng&localityLanguage=id',
       );
-      final response = await http.get(
-        uri,
-        headers: {'Accept': 'application/json'},
-      ).timeout(const Duration(seconds: 10));
+      final response = await http
+          .get(uri, headers: {'Accept': 'application/json'})
+          .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final decoded = jsonDecode(response.body);
@@ -124,7 +109,6 @@ class AladhanPrayerTimesService {
               : (decoded['locality']?.toString().trim().isNotEmpty == true)
                   ? decoded['locality'].toString().trim()
                   : 'Lokasi GPS Terdeteksi';
-
           final province =
               (decoded['principalSubdivision']?.toString().trim().isNotEmpty == true)
                   ? decoded['principalSubdivision'].toString().trim()
@@ -135,20 +119,14 @@ class AladhanPrayerTimesService {
           return (city, province);
         }
       }
-    } catch (_) {
-      // Gunakan cache jika gagal mengambil nama kota
-    }
+    } catch (_) {}
 
     final savedCity = prefs.getString('last_city');
     final savedProvince = prefs.getString('last_province');
     if (savedCity != null && savedCity.isNotEmpty) {
       return (savedCity, savedProvince ?? timezone);
     }
-
-    return (
-      'Lokasi GPS Terdeteksi',
-      '${lat.toStringAsFixed(3)}, ${lng.toStringAsFixed(3)} •$timezone',
-    );
+    return ('Lokasi GPS Terdeteksi', '${lat.toStringAsFixed(3)}, ${lng.toStringAsFixed(3)} •$timezone');
   }
 
   static String _addMinutes(String hhmm, int minutesToAdd) {
@@ -158,16 +136,13 @@ class AladhanPrayerTimesService {
     final m = int.tryParse(parts[1]);
     if (h == null || m == null) return '--:--';
     final total = (h * 60 + m + minutesToAdd) % (24 * 60);
-    final newH = (total ~/ 60).toString().padLeft(2, '0');
-    final newM = (total % 60).toString().padLeft(2, '0');
-    return '$newH:$newM';
+    return '${(total ~/ 60).toString().padLeft(2, '0')}:${(total % 60).toString().padLeft(2, '0')}';
   }
 
   static Future<Position> _getPosition() async {
     if (!await Geolocator.isLocationServiceEnabled()) {
       throw Exception('GPS belum aktif. Aktifkan lokasi perangkat lalu coba lagi.');
     }
-
     var permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
@@ -178,7 +153,6 @@ class AladhanPrayerTimesService {
     }
 
     final prefs = await SharedPreferences.getInstance();
-
     final lastKnown = await Geolocator.getLastKnownPosition();
     if (lastKnown != null) {
       await prefs.setDouble('last_lat', lastKnown.latitude);
@@ -213,9 +187,7 @@ class AladhanPrayerTimesService {
           speedAccuracy: 0,
         );
       }
-      throw Exception(
-        'Sinyal GPS sulit didapat. Coba buka Google Maps sebentar atau pindah ke area lebih terbuka lalu tekan refresh.',
-      );
+      throw Exception('Sinyal GPS sulit didapat. Buka Google Maps sebentar lalu tekan refresh.');
     }
   }
 }
