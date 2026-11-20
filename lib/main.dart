@@ -76,9 +76,9 @@ class HomePage extends StatelessWidget {
       const SectionTitle('Mulai ibadah hari ini'), const SizedBox(height: 12),
       GridView.count(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), crossAxisCount: 3,
         crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: .95, children: [
-          QuickTile('Jadwal salat', Icons.access_time, () => _push(context, const PrayerPage())),
-          QuickTile('Al-Qur’an', Icons.menu_book, () => _push(context, const QuranPage())),
-          QuickTile('Murottal', Icons.headphones, () => _push(context, const QuranPage())),
+          QuickTile('Jadwal salat', Icons.access_time, () => _push(context, Scaffold(appBar: AppBar(title: const Text('Waktu Salat')), body: const PrayerPage()))),
+          QuickTile('Al-Qur’an', Icons.menu_book, () => _push(context, Scaffold(appBar: AppBar(title: const Text('Al-Qur’an')), body: const QuranPage()))),
+          QuickTile('Murottal', Icons.headphones, () => _push(context, Scaffold(appBar: AppBar(title: const Text('Murottal')), body: const QuranPage()))),
           QuickTile('Arah kiblat', Icons.explore, () => _push(context, const QiblaPage())),
           QuickTile('Tasbih', Icons.fingerprint, () => _push(context, const TasbihPage())),
           QuickTile('Doa harian', Icons.volunteer_activism, () => _push(context, const DuaPage())),
@@ -89,7 +89,6 @@ class HomePage extends StatelessWidget {
     ]);
   }
 }
-
 
 class PrayerPage extends StatefulWidget {
   const PrayerPage({super.key});
@@ -265,7 +264,6 @@ class _PrayerPageState extends State<PrayerPage> {
     );
   }
 }
-
 
 class QuranPage extends StatefulWidget { const QuranPage({super.key}); @override State<QuranPage> createState() => _QuranPageState(); }
 class _QuranPageState extends State<QuranPage> {
