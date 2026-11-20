@@ -9,7 +9,12 @@ class AzanNotificationService {
 
   static const String _channelId = 'muslimku_azan_v1';
   static const String _channelName = 'Notifikasi Azan';
-  static const String _channelDesc = 'Pengingat waktu salat dengan suara azan offline';
+  static const String _channelDesc = 'Pengingat waktu salat (Zuhur, Asar, Magrib, Isya)';
+
+  static const String _subuhChannelId = 'muslimku_azan_subuh_v1';
+  static const String _subuhChannelName = 'Notifikasi Azan Subuh';
+  static const String _subuhChannelDesc = 'Pengingat waktu salat Subuh dengan suara azan Subuh';
+
   static const List<String> prayerKeys = ['Subuh', 'Zuhur', 'Asar', 'Magrib', 'Isya'];
 
   static bool _initialized = false;
@@ -54,20 +59,20 @@ class AzanNotificationService {
     }
   }
 
-  static NotificationDetails _azanDetails() {
-    return const NotificationDetails(
+  static NotificationDetails _azanDetails({bool isSubuh = false}) {
+    return NotificationDetails(
       android: AndroidNotificationDetails(
-        _channelId,
-        _channelName,
-        channelDescription: _channelDesc,
+        isSubuh ? _subuhChannelId : _channelId,
+        isSubuh ? _subuhChannelName : _channelName,
+        channelDescription: isSubuh ? _subuhChannelDesc : _channelDesc,
         importance: Importance.max,
         priority: Priority.max,
-        sound: RawResourceAndroidNotificationSound('azan'),
+        sound: RawResourceAndroidNotificationSound(isSubuh ? 'azan_subuh' : 'azan'),
         playSound: true,
         enableVibration: true,
         audioAttributesUsage: AudioAttributesUsage.alarm,
         autoCancel: true,
-        actions: <AndroidNotificationAction>[
+        actions: const <AndroidNotificationAction>[
           AndroidNotificationAction(
             'stop_azan',
             'Hentikan Azan',
@@ -84,7 +89,6 @@ class AzanNotificationService {
     final prefs = await SharedPreferences.getInstance();
     final enabled = prefs.getBool('azan_enabled') ?? true;
 
-    // Batalkan jadwal lama sebelum menjadwalkan ulang
     for (int i = 0; i < prayerKeys.length; i++) {
       await _plugin.cancel(100 + i);
     }
@@ -110,26 +114,27 @@ class AzanNotificationService {
         scheduled = scheduled.add(const Duration(days: 1));
       }
 
+      final isSubuh = name == 'Subuh';
+
       try {
         await _plugin.zonedSchedule(
           100 + i,
           'Waktu Salat $name',
           'Telah masuk waktu salat $name ($hhmm). Mari tunaikan salat.',
           scheduled,
-          _azanDetails(),
+          _azanDetails(isSubuh: isSubuh),
           androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
           matchDateTimeComponents: DateTimeComponents.time,
         );
       } catch (_) {
-        // Fallback jika izin exact alarm belum diberikan
         await _plugin.zonedSchedule(
           100 + i,
           'Waktu Salat $name',
           'Telah masuk waktu salat $name ($hhmm). Mari tunaikan salat.',
           scheduled,
-          _azanDetails(),
+          _azanDetails(isSubuh: isSubuh),
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
           uiLocalNotificationDateInterpretation:
               UILocalNotificationDateInterpretation.absoluteTime,
@@ -139,13 +144,13 @@ class AzanNotificationService {
     }
   }
 
-  static Future<void> testAzan() async {
+  static Future<void> testAzan({bool isSubuh = false}) async {
     await init();
     await _plugin.show(
       999,
-      'Tes Notifikasi Azan',
+      isSubuh ? 'Tes Notifikasi Azan Subuh' : 'Tes Notifikasi Azan',
       'Suara azan offline aktif. Tekan "Hentikan Azan" untuk mematikan.',
-      _azanDetails(),
+      _azanDetails(isSubuh: isSubuh),
     );
   }
 
