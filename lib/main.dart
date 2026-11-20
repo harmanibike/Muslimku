@@ -76,6 +76,15 @@ class _MainShellState extends State<MainShell> {
     setState(() => subPages.add((title, page)));
   }
 
+  void updateTopSubPageTitle(String title) {
+    if (subPages.isEmpty || !mounted) return;
+    final lastIdx = subPages.length - 1;
+    if (subPages[lastIdx].$1 == title) return;
+    setState(() {
+      subPages[lastIdx] = (title, subPages[lastIdx].$2);
+    });
+  }
+
   void _popSubPage() {
     if (subPages.isNotEmpty) {
       HapticFeedback.selectionClick();
@@ -633,20 +642,22 @@ class _SurahPageState extends State<SurahPage> {
   }
 
   void _syncShellTitle(String title) {
-    final shell = context.findAncestorStateOfType<_MainShellState>();
-    if (shell != null && shell.subPages.isNotEmpty) {
-      shell.setState(() {
-        final lastIdx = shell.subPages.length - 1;
-        shell.subPages[lastIdx] = (title, shell.subPages[lastIdx].$2);
-      });
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final shell = context.findAncestorStateOfType<_MainShellState>();
+      shell?.updateTopSubPageTitle(title);
+    });
   }
 
   void _goToSurah(int targetNumber) {
     if (targetNumber < 1 || targetNumber > 114 || loading) return;
     HapticFeedback.selectionClick();
-    _currentNumber = targetNumber;
-    _currentName = _surahName(targetNumber) ?? 'Surah $targetNumber';
+    final targetName = _surahName(targetNumber) ?? 'Surah $targetNumber';
+    setState(() {
+      _currentNumber = targetNumber;
+      _currentName = targetName;
+    });
+    _syncShellTitle(targetName);
     _get();
   }
 
