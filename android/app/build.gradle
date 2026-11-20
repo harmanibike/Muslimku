@@ -1,3 +1,4 @@
+
 plugins {
     id "com.android.application"
     id "kotlin-android"
@@ -8,8 +9,16 @@ android {
     namespace "com.muslimku.app"
     compileSdk flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
-    compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
-    kotlinOptions { jvmTarget = JavaVersion.VERSION_17 }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_17
+    }
+
     defaultConfig {
         applicationId "com.muslimku.app"
         minSdk 23
@@ -17,5 +26,14 @@ android {
         versionCode 4
         versionName "1.2.0"
     }
+
+    buildTypes {
+        release {
+            signingConfig signingConfigs.debug
+        }
+    }
 }
-flutter { source "../.." }
+
+flutter {
+    source "../.."
+}
