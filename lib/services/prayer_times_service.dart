@@ -129,12 +129,46 @@ class SajadahPrayerTimesService {
       throw Exception('Izin lokasi belum diberikan. Izinkan Muslimku mengakses lokasi.');
     }
 
-    return Geolocator.getCurrentPosition(
-      locationSettings: const LocationSettings(
-        accuracy: LocationAccuracy.medium,
-        timeLimit: Duration(seconds: 20),
-      ),
-    );
+    final prefs = await SharedPreferences.getInstance();
+
+    final lastKnown = await Geolocator.getLastKnownPosition();
+    if (lastKnown != null) {
+      await prefs.setDouble('last_lat', lastKnown.latitude);
+      await prefs.setDouble('last_lng', lastKnown.longitude);
+      return lastKnown;
+    }
+
+    try {
+      final pos = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.low,
+          timeLimit: Duration(seconds: 12),
+        ),
+      );
+      await prefs.setDouble('last_lat', pos.latitude);
+      await prefs.setDouble('last_lng', pos.longitude);
+      return pos;
+    } catch (_) {
+      final savedLat = prefs.getDouble('last_lat');
+      final savedLng = prefs.getDouble('last_lng');
+      if (savedLat != null && savedLng != null) {
+        return Position(
+          latitude: savedLat,
+          longitude: savedLng,
+          timestamp: DateTime.now(),
+          accuracy: 0,
+          altitude: 0,
+          altitudeAccuracy: 0,
+          heading: 0,
+          headingAccuracy: 0,
+          speed: 0,
+          speedAccuracy: 0,
+        );
+      }
+      throw Exception(
+        'Sinyal GPS sulit didapat. Coba buka Google Maps sebentar atau pindah ke area lebih terbuka lalu tekan refresh.',
+      );
+    }
   }
 
   static Future<List<dynamic>> _loadRegions() async {
