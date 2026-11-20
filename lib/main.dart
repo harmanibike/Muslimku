@@ -59,7 +59,30 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int index = 0;
-  final pages = const [HomePage(), PrayerPage(), QuranPage(), LibraryPage(), MorePage()];
+  final List<(String, Widget)> subPages = [];
+
+  void _selectTab(int newIndex) {
+    if (index != newIndex || subPages.isNotEmpty) {
+      HapticFeedback.selectionClick();
+      setState(() {
+        index = newIndex;
+        subPages.clear();
+      });
+    }
+  }
+
+  void openSubPage(String title, Widget page) {
+    HapticFeedback.selectionClick();
+    setState(() => subPages.add((title, page)));
+  }
+
+  void _popSubPage() {
+    if (subPages.isNotEmpty) {
+      HapticFeedback.selectionClick();
+      setState(() => subPages.removeLast());
+    }
+  }
+
   final titles = const ['Muslimku', 'Waktu Salat', 'Al-Qur’an', 'Perpustakaan', 'Lainnya'];
   final navItems = const [
     (Icons.home_outlined, Icons.home_rounded, 'Beranda'),
@@ -70,10 +93,51 @@ class _MainShellState extends State<MainShell> {
   ];
 
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) {
+    final pages = [
+      HomePage(onSelectTab: _selectTab),
+      const PrayerPage(),
+      const QuranPage(),
+      const LibraryPage(),
+      const MorePage(),
+    ];
+
+    final hasSub = subPages.isNotEmpty;
+    final currentTitle = hasSub ? subPages.last.$1 : titles[index];
+    final currentBody = hasSub ? subPages.last.$2 : pages[index];
+    final currentKey = hasSub
+        ? ValueKey('sub_${subPages.length}_${subPages.last.$1}')
+        : ValueKey('tab_$index');
+
+    return PopScope(
+      canPop: !hasSub,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && subPages.isNotEmpty) {
+          _popSubPage();
+        }
+      },
+      child: Scaffold(
         appBar: AppBar(
           toolbarHeight: 68,
+          automaticallyImplyLeading: false,
           title: Row(children: [
+            if (hasSub) ...[
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE5ECE8)),
+                ),
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  onPressed: _popSubPage,
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 17, color: ink),
+                ),
+              ),
+              const SizedBox(width: 10),
+            ],
             Container(
               width: 42,
               height: 42,
@@ -85,16 +149,24 @@ class _MainShellState extends State<MainShell> {
               child: const Icon(Icons.nightlight_round, color: Colors.white, size: 22),
             ),
             const SizedBox(width: 12),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 220),
-              child: Text(titles[index], key: ValueKey(titles[index]),
-                  style: const TextStyle(fontSize: 21, fontWeight: FontWeight.w800, color: ink)),
+            Expanded(
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 220),
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  currentTitle,
+                  key: ValueKey(currentTitle),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: ink),
+                ),
+              ),
             ),
           ]),
         ),
         body: AnimatedSwitcher(
           duration: const Duration(milliseconds: 240),
-          child: KeyedSubtree(key: ValueKey(index), child: pages[index]),
+          child: KeyedSubtree(key: currentKey, child: currentBody),
         ),
         bottomNavigationBar: Container(
           decoration: BoxDecoration(
@@ -107,17 +179,12 @@ class _MainShellState extends State<MainShell> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               child: Row(
                 children: List.generate(navItems.length, (i) {
-                  final sel = i == index;
+                  final sel = !hasSub && i == index;
                   final item = navItems[i];
                   return Expanded(
                     child: GestureDetector(
                       behavior: HitTestBehavior.opaque,
-                      onTap: () {
-                        if (index != i) {
-                          HapticFeedback.selectionClick();
-                          setState(() => index = i);
-                        }
-                      },
+                      onTap: () => _selectTab(i),
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 220),
                         padding: const EdgeInsets.symmetric(vertical: 8),
@@ -138,11 +205,15 @@ class _MainShellState extends State<MainShell> {
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({super.key});
+  final ValueChanged<int> onSelectTab;
+  const HomePage({super.key, required this.onSelectTab});
+
   String _greeting(int h) => h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam';
 
   @override
@@ -203,15 +274,12 @@ class HomePage extends StatelessWidget {
           mainAxisSpacing: 12,
           childAspectRatio: 0.92,
           children: [
-            QuickTile('Jadwal salat', Icons.access_time_filled_rounded, const Color(0xFFE6F4EC), green,
-                () => _push(context, Scaffold(appBar: AppBar(title: const Text('Waktu Salat')), body: const PrayerPage()))),
-            QuickTile('Al-Qur’an', Icons.menu_book_rounded, const Color(0xFFE6F2F8), const Color(0xFF1A6B96),
-                () => _push(context, Scaffold(appBar: AppBar(title: const Text('Al-Qur’an')), body: const QuranPage()))),
-            QuickTile('Murottal', Icons.headphones_rounded, const Color(0xFFF3ECFA), const Color(0xFF6B3FA0),
-                () => _push(context, Scaffold(appBar: AppBar(title: const Text('Murottal')), body: const QuranPage()))),
-            QuickTile('Arah kiblat', Icons.explore_rounded, const Color(0xFFFEF3E2), const Color(0xFFC2780A), () => _push(context, const QiblaPage())),
-            QuickTile('Tasbih', Icons.fingerprint_rounded, const Color(0xFFE8F5F3), const Color(0xFF0F766E), () => _push(context, const TasbihPage())),
-            QuickTile('Doa harian', Icons.volunteer_activism_rounded, const Color(0xFFFCEBF0), const Color(0xFFB83260), () => _push(context, const DuaPage())),
+            QuickTile('Jadwal salat', Icons.access_time_filled_rounded, const Color(0xFFE6F4EC), green, () => onSelectTab(1)),
+            QuickTile('Al-Qur’an', Icons.menu_book_rounded, const Color(0xFFE6F2F8), const Color(0xFF1A6B96), () => onSelectTab(2)),
+            QuickTile('Murottal', Icons.headphones_rounded, const Color(0xFFF3ECFA), const Color(0xFF6B3FA0), () => onSelectTab(2)),
+            QuickTile('Arah kiblat', Icons.explore_rounded, const Color(0xFFFEF3E2), const Color(0xFFC2780A), () => _push(context, 'Arah Kiblat', const QiblaPage())),
+            QuickTile('Tasbih', Icons.fingerprint_rounded, const Color(0xFFE8F5F3), const Color(0xFF0F766E), () => _push(context, 'Tasbih Digital', const TasbihPage())),
+            QuickTile('Doa harian', Icons.volunteer_activism_rounded, const Color(0xFFFCEBF0), const Color(0xFFB83260), () => _push(context, 'Doa Harian', const DuaPage())),
           ],
         ),
         const SizedBox(height: 24),
@@ -458,6 +526,7 @@ class _QuranPageState extends State<QuranPage> {
               itemCount: filtered.length,
               itemBuilder: (c, i) {
                 final s = filtered[i] as Map<String, dynamic>;
+                final surahName = s['namaLatin']?.toString() ?? '';
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   decoration: cardDecoration(),
@@ -469,10 +538,10 @@ class _QuranPageState extends State<QuranPage> {
                       alignment: Alignment.center,
                       child: Text('${s['nomor']}', style: const TextStyle(color: greenDark, fontWeight: FontWeight.w800)),
                     ),
-                    title: Text(s['namaLatin']?.toString() ?? '', style: const TextStyle(fontWeight: FontWeight.w800, color: ink)),
+                    title: Text(surahName, style: const TextStyle(fontWeight: FontWeight.w800, color: ink)),
                     subtitle: Text('${s['arti'] ?? ''} • ${s['jumlahAyat'] ?? ''} ayat', style: const TextStyle(color: muted, fontSize: 12)),
                     trailing: Text(s['nama']?.toString() ?? '', style: const TextStyle(fontSize: 20, color: greenDark)),
-                    onTap: () => _push(context, SurahPage(number: s['nomor'] as int, name: s['namaLatin'].toString())),
+                    onTap: () => _push(context, surahName, SurahPage(number: s['nomor'] as int, name: surahName)),
                   ),
                 );
               },
@@ -523,95 +592,92 @@ class _SurahPageState extends State<SurahPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(widget.name)),
-        body: loading
-            ? const Center(child: CircularProgressIndicator(color: green))
-            : error != null
-                ? Center(child: Text(error!))
-                : ListView(
-                    physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
-                    children: [
-                      if (data!['audioFull'] != null) ...[
-                        Container(
-                          padding: const EdgeInsets.all(16),
-                          decoration: cardDecoration(),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                            Row(children: [
-                              const Icon(Icons.headphones_rounded, color: green, size: 20),
-                              const SizedBox(width: 8),
-                              const Text('Audio Murottal', style: TextStyle(fontWeight: FontWeight.w800, color: ink)),
-                              const Spacer(),
-                              if (playingQari != null)
-                                TextButton.icon(
-                                  onPressed: () async { await player.stop(); if (mounted) setState(() => playingQari = null); },
-                                  icon: const Icon(Icons.stop_rounded, size: 18, color: Colors.redAccent),
-                                  label: const Text('Stop', style: TextStyle(color: Colors.redAccent)),
-                                ),
-                            ]),
-                            const SizedBox(height: 10),
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: (data!['audioFull'] as Map<String, dynamic>).entries.take(4).map((e) {
-                                final isPlaying = playingQari == e.key;
-                                return ChoiceChip(
-                                  selected: isPlaying,
-                                  selectedColor: green,
-                                  backgroundColor: greenSoft,
-                                  side: BorderSide.none,
-                                  labelStyle: TextStyle(color: isPlaying ? Colors.white : greenDark, fontWeight: FontWeight.w700),
-                                  avatar: Icon(isPlaying ? Icons.graphic_eq_rounded : Icons.play_arrow_rounded, size: 18, color: isPlaying ? Colors.white : greenDark),
-                                  label: Text('Qari ${e.key}'),
-                                  onSelected: (_) async {
-                                    try {
-                                      await player.stop();
-                                      if (isPlaying) {
-                                        setState(() => playingQari = null);
-                                      } else {
-                                        setState(() => playingQari = e.key);
-                                        await player.play(UrlSource(e.value.toString()));
-                                      }
-                                    } catch (_) {
-                                      if (mounted) {
-                                        setState(() => playingQari = null);
-                                        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Audio gagal diputar. Periksa koneksi.')));
-                                      }
-                                    }
-                                  },
-                                );
-                              }).toList(),
-                            ),
-                          ]),
-                        ),
-                        const SizedBox(height: 14),
-                      ],
-                      for (final a in data!['ayat'] as List<dynamic>)
-                        Container(
-                          margin: const EdgeInsets.only(bottom: 12),
-                          padding: const EdgeInsets.all(18),
-                          decoration: cardDecoration(),
-                          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                            Align(
-                              alignment: Alignment.centerLeft,
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                decoration: BoxDecoration(color: greenSoft, borderRadius: BorderRadius.circular(10)),
-                                child: Text('Ayat ${a['nomorAyat']}', style: const TextStyle(color: greenDark, fontWeight: FontWeight.w800, fontSize: 12)),
-                              ),
-                            ),
-                            const SizedBox(height: 14),
-                            Text(a['teksArab']?.toString() ?? '', textAlign: TextAlign.right, textDirection: TextDirection.rtl, style: const TextStyle(fontSize: 28, height: 2.0, color: ink)),
-                            const SizedBox(height: 14),
-                            Text(a['teksLatin']?.toString() ?? '', style: const TextStyle(color: greenDark, fontStyle: FontStyle.italic, height: 1.5)),
-                            const SizedBox(height: 8),
-                            Text(a['teksIndonesia']?.toString() ?? '', style: const TextStyle(color: muted, height: 1.55)),
-                          ]),
-                        ),
-                    ],
+  Widget build(BuildContext context) {
+    if (loading) return const Center(child: CircularProgressIndicator(color: green));
+    if (error != null) return Center(child: Padding(padding: const EdgeInsets.all(20), child: Text(error!, textAlign: TextAlign.center)));
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
+      children: [
+        if (data!['audioFull'] != null) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: cardDecoration(),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                const Icon(Icons.headphones_rounded, color: green, size: 20),
+                const SizedBox(width: 8),
+                const Text('Audio Murottal', style: TextStyle(fontWeight: FontWeight.w800, color: ink)),
+                const Spacer(),
+                if (playingQari != null)
+                  TextButton.icon(
+                    onPressed: () async { await player.stop(); if (mounted) setState(() => playingQari = null); },
+                    icon: const Icon(Icons.stop_rounded, size: 18, color: Colors.redAccent),
+                    label: const Text('Stop', style: TextStyle(color: Colors.redAccent)),
                   ),
-      );
+              ]),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: (data!['audioFull'] as Map<String, dynamic>).entries.take(4).map((e) {
+                  final isPlaying = playingQari == e.key;
+                  return ChoiceChip(
+                    selected: isPlaying,
+                    selectedColor: green,
+                    backgroundColor: greenSoft,
+                    side: BorderSide.none,
+                    labelStyle: TextStyle(color: isPlaying ? Colors.white : greenDark, fontWeight: FontWeight.w700),
+                    avatar: Icon(isPlaying ? Icons.graphic_eq_rounded : Icons.play_arrow_rounded, size: 18, color: isPlaying ? Colors.white : greenDark),
+                    label: Text('Qari ${e.key}'),
+                    onSelected: (_) async {
+                      try {
+                        await player.stop();
+                        if (isPlaying) {
+                          setState(() => playingQari = null);
+                        } else {
+                          setState(() => playingQari = e.key);
+                          await player.play(UrlSource(e.value.toString()));
+                        }
+                      } catch (_) {
+                        if (mounted) {
+                          setState(() => playingQari = null);
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Audio gagal diputar. Periksa koneksi.')));
+                        }
+                      }
+                    },
+                  );
+                }).toList(),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 14),
+        ],
+        for (final a in data!['ayat'] as List<dynamic>)
+          Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(18),
+            decoration: cardDecoration(),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(color: greenSoft, borderRadius: BorderRadius.circular(10)),
+                  child: Text('Ayat ${a['nomorAyat']}', style: const TextStyle(color: greenDark, fontWeight: FontWeight.w800, fontSize: 12)),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(a['teksArab']?.toString() ?? '', textAlign: TextAlign.right, textDirection: TextDirection.rtl, style: const TextStyle(fontSize: 28, height: 2.0, color: ink)),
+              const SizedBox(height: 14),
+              Text(a['teksLatin']?.toString() ?? '', style: const TextStyle(color: greenDark, fontStyle: FontStyle.italic, height: 1.5)),
+              const SizedBox(height: 8),
+              Text(a['teksIndonesia']?.toString() ?? '', style: const TextStyle(color: muted, height: 1.55)),
+            ]),
+          ),
+      ],
+    );
+  }
 }
 
 class QiblaPage extends StatefulWidget {
@@ -648,39 +714,37 @@ class _QiblaPageState extends State<QiblaPage> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Arah Kiblat')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.explore_rounded, color: green, size: 46),
-              const SizedBox(height: 12),
-              const Text('Arah Ka’bah', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: ink)),
-              const SizedBox(height: 8),
-              if (error != null) Text(error!, textAlign: TextAlign.center),
-              if (bearing != null) ...[
-                Text('${bearing!.toStringAsFixed(1)}° dari utara sejati', style: const TextStyle(fontSize: 16, color: greenDark, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 24),
-                StreamBuilder<CompassEvent>(
-                  stream: FlutterCompass.events,
-                  builder: (c, s) => Transform.rotate(
-                    angle: (bearing! - (s.data?.heading ?? 0)) * math.pi / 180,
-                    child: Container(
-                      width: 220,
-                      height: 220,
-                      decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white, border: Border.all(color: green, width: 3)),
-                      child: const Icon(Icons.navigation_rounded, size: 120, color: green),
-                    ),
+  Widget build(BuildContext context) => Center(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.all(24),
+          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+            const Icon(Icons.explore_rounded, color: green, size: 46),
+            const SizedBox(height: 12),
+            const Text('Arah Ka’bah', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: ink)),
+            const SizedBox(height: 8),
+            if (error != null) Text(error!, textAlign: TextAlign.center),
+            if (bearing != null) ...[
+              Text('${bearing!.toStringAsFixed(1)}° dari utara sejati', style: const TextStyle(fontSize: 16, color: greenDark, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 24),
+              StreamBuilder<CompassEvent>(
+                stream: FlutterCompass.events,
+                builder: (c, s) => Transform.rotate(
+                  angle: (bearing! - (s.data?.heading ?? 0)) * math.pi / 180,
+                  child: Container(
+                    width: 220,
+                    height: 220,
+                    decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white, border: Border.all(color: green, width: 3)),
+                    child: const Icon(Icons.navigation_rounded, size: 120, color: green),
                   ),
                 ),
-                const SizedBox(height: 18),
-                const Text('Putar perangkat sampai penunjuk mengarah ke atas.', textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 12)),
-              ],
+              ),
               const SizedBox(height: 18),
-              FilledButton.tonalIcon(onPressed: _calc, icon: const Icon(Icons.refresh_rounded), label: const Text('Perbarui lokasi')),
-            ]),
-          ),
+              const Text('Putar perangkat sampai penunjuk mengarah ke atas.', textAlign: TextAlign.center, style: TextStyle(color: muted, fontSize: 12)),
+            ],
+            const SizedBox(height: 18),
+            FilledButton.tonalIcon(onPressed: _calc, icon: const Icon(Icons.refresh_rounded), label: const Text('Perbarui lokasi')),
+          ]),
         ),
       );
 }
@@ -723,102 +787,100 @@ class _TasbihPageState extends State<TasbihPage> {
   @override
   Widget build(BuildContext context) {
     final progress = (count % target) / target;
-    return Scaffold(
-      appBar: AppBar(title: const Text('Tasbih Digital')),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
-              decoration: cardDecoration(),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  value: phrase,
-                  items: const ['Subhanallah', 'Alhamdulillah', 'Allahu Akbar', 'Astaghfirullah', 'La ilaha illallah']
-                      .map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(fontWeight: FontWeight.w700))))
-                      .toList(),
-                  onChanged: (v) { if (v != null) setState(() => phrase = v); _save(); },
+    return Center(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(24),
+        child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 4),
+            decoration: cardDecoration(),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: phrase,
+                items: const ['Subhanallah', 'Alhamdulillah', 'Allahu Akbar', 'Astaghfirullah', 'La ilaha illallah']
+                    .map((v) => DropdownMenuItem(value: v, child: Text(v, style: const TextStyle(fontWeight: FontWeight.w700))))
+                    .toList(),
+                onChanged: (v) { if (v != null) setState(() => phrase = v); _save(); },
+              ),
+            ),
+          ),
+          const SizedBox(height: 22),
+          Text('$count', style: const TextStyle(fontSize: 72, fontWeight: FontWeight.w800, color: greenDark)),
+          Text('Target $target', style: const TextStyle(color: muted, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 26),
+          Stack(alignment: Alignment.center, children: [
+            SizedBox(
+              width: 215,
+              height: 215,
+              child: CircularProgressIndicator(
+                value: count > 0 && count % target == 0 ? 1.0 : progress,
+                strokeWidth: 8,
+                backgroundColor: greenSoft,
+                color: greenLight,
+                strokeCap: StrokeCap.round,
+              ),
+            ),
+            GestureDetector(
+              onTapDown: (_) => setState(() => pressed = true),
+              onTapUp: (_) => setState(() => pressed = false),
+              onTapCancel: () => setState(() => pressed = false),
+              onTap: () {
+                HapticFeedback.lightImpact();
+                setState(() => count++);
+                _save();
+                if (count == target) {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alhamdulillah, target zikir tercapai!')));
+                }
+              },
+              child: AnimatedScale(
+                scale: pressed ? 0.93 : 1.0,
+                duration: const Duration(milliseconds: 100),
+                child: Container(
+                  width: 185,
+                  height: 185,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: const LinearGradient(colors: [greenLight, greenDark]),
+                    boxShadow: [BoxShadow(color: green.withOpacity(0.32), blurRadius: 22, offset: const Offset(0, 10))],
+                  ),
+                  child: const Center(child: Text('ZIKIR', style: TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 2, fontWeight: FontWeight.w800))),
                 ),
               ),
             ),
-            const SizedBox(height: 22),
-            Text('$count', style: const TextStyle(fontSize: 72, fontWeight: FontWeight.w800, color: greenDark)),
-            Text('Target $target', style: const TextStyle(color: muted, fontWeight: FontWeight.w600)),
-            const SizedBox(height: 26),
-            Stack(alignment: Alignment.center, children: [
-              SizedBox(
-                width: 215,
-                height: 215,
-                child: CircularProgressIndicator(
-                  value: count > 0 && count % target == 0 ? 1.0 : progress,
-                  strokeWidth: 8,
-                  backgroundColor: greenSoft,
-                  color: greenLight,
-                  strokeCap: StrokeCap.round,
-                ),
-              ),
-              GestureDetector(
-                onTapDown: (_) => setState(() => pressed = true),
-                onTapUp: (_) => setState(() => pressed = false),
-                onTapCancel: () => setState(() => pressed = false),
-                onTap: () {
-                  HapticFeedback.lightImpact();
-                  setState(() => count++);
-                  _save();
-                  if (count == target) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Alhamdulillah, target zikir tercapai!')));
-                  }
-                },
-                child: AnimatedScale(
-                  scale: pressed ? 0.93 : 1.0,
-                  duration: const Duration(milliseconds: 100),
-                  child: Container(
-                    width: 185,
-                    height: 185,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: const LinearGradient(colors: [greenLight, greenDark]),
-                      boxShadow: [BoxShadow(color: green.withOpacity(0.32), blurRadius: 22, offset: const Offset(0, 10))],
-                    ),
-                    child: const Center(child: Text('ZIKIR', style: TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 2, fontWeight: FontWeight.w800))),
-                  ),
-                ),
-              ),
-            ]),
-            const SizedBox(height: 26),
-            Wrap(spacing: 12, children: [
-              OutlinedButton.icon(onPressed: () { setState(() => count = 0); _save(); }, icon: const Icon(Icons.refresh_rounded, size: 18), label: const Text('Reset')),
-              FilledButton.tonalIcon(
-                onPressed: () async {
-                  final v = await showDialog<int>(
-                    context: context,
-                    builder: (c) {
-                      int n = target;
-                      return AlertDialog(
-                        title: const Text('Atur target'),
-                        content: StatefulBuilder(
-                          builder: (c, setD) => DropdownButton<int>(
-                            value: n,
-                            items: [33, 99, 100, 1000].map((x) => DropdownMenuItem(value: x, child: Text('$x'))).toList(),
-                            onChanged: (x) { if (x != null) setD(() => n = x); },
-                          ),
-                        ),
-                        actions: [
-                          TextButton(onPressed: () => Navigator.pop(c), child: const Text('Batal')),
-                          TextButton(onPressed: () => Navigator.pop(c, n), child: const Text('Simpan')),
-                        ],
-                      );
-                    },
-                  );
-                  if (v != null) { setState(() => target = v); _save(); }
-                },
-                icon: const Icon(Icons.flag_rounded, size: 18),
-                label: const Text('Target'),
-              ),
-            ]),
           ]),
-        ),
+          const SizedBox(height: 26),
+          Wrap(spacing: 12, children: [
+            OutlinedButton.icon(onPressed: () { setState(() => count = 0); _save(); }, icon: const Icon(Icons.refresh_rounded, size: 18), label: const Text('Reset')),
+            FilledButton.tonalIcon(
+              onPressed: () async {
+                final v = await showDialog<int>(
+                  context: context,
+                  builder: (c) {
+                    int n = target;
+                    return AlertDialog(
+                      title: const Text('Atur target'),
+                      content: StatefulBuilder(
+                        builder: (c, setD) => DropdownButton<int>(
+                          value: n,
+                          items: [33, 99, 100, 1000].map((x) => DropdownMenuItem(value: x, child: Text('$x'))).toList(),
+                          onChanged: (x) { if (x != null) setD(() => n = x); },
+                        ),
+                      ),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(c), child: const Text('Batal')),
+                        TextButton(onPressed: () => Navigator.pop(c, n), child: const Text('Simpan')),
+                      ],
+                    );
+                  },
+                );
+                if (v != null) { setState(() => target = v); _save(); }
+              },
+              icon: const Icon(Icons.flag_rounded, size: 18),
+              label: const Text('Target'),
+            ),
+          ]),
+        ]),
       ),
     );
   }
@@ -833,8 +895,8 @@ class LibraryPage extends StatelessWidget {
         children: [
           const InfoCard(icon: Icons.auto_stories_rounded, title: 'Perpustakaan Muslimku', text: 'Kumpulan doa dan hadis ringkas.'),
           const SizedBox(height: 14),
-          _navTile(context, 'Doa harian', Icons.volunteer_activism_rounded, const DuaPage()),
-          _navTile(context, 'Hadis pilihan', Icons.menu_book_rounded, const HadithPage()),
+          _navTile(context, 'Doa harian', Icons.volunteer_activism_rounded, 'Doa Harian', const DuaPage()),
+          _navTile(context, 'Hadis pilihan', Icons.menu_book_rounded, 'Hadis Pilihan', const HadithPage()),
         ],
       );
 }
@@ -846,12 +908,12 @@ class MorePage extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
         children: [
-          _navTile(context, 'Arah kiblat', Icons.explore_rounded, const QiblaPage()),
-          _navTile(context, 'Tasbih digital', Icons.fingerprint_rounded, const TasbihPage()),
-          _navTile(context, 'Doa harian', Icons.volunteer_activism_rounded, const DuaPage()),
-          _navTile(context, 'Hadis pilihan', Icons.auto_stories_rounded, const HadithPage()),
-          _navTile(context, 'Kalkulator zakat', Icons.calculate_rounded, const ZakatPage()),
-          _navTile(context, 'Pengingat salat', Icons.notifications_active_rounded, const ReminderPage()),
+          _navTile(context, 'Arah kiblat', Icons.explore_rounded, 'Arah Kiblat', const QiblaPage()),
+          _navTile(context, 'Tasbih digital', Icons.fingerprint_rounded, 'Tasbih Digital', const TasbihPage()),
+          _navTile(context, 'Doa harian', Icons.volunteer_activism_rounded, 'Doa Harian', const DuaPage()),
+          _navTile(context, 'Hadis pilihan', Icons.auto_stories_rounded, 'Hadis Pilihan', const HadithPage()),
+          _navTile(context, 'Kalkulator zakat', Icons.calculate_rounded, 'Kalkulator Zakat Mal', const ZakatPage()),
+          _navTile(context, 'Pengingat salat', Icons.notifications_active_rounded, 'Pengingat Salat', const ReminderPage()),
           const SizedBox(height: 14),
           const InfoCard(icon: Icons.info_outline_rounded, title: 'Tentang Muslimku', text: 'Versi 1.3.0 • Aplikasi pendamping ibadah.'),
         ],
@@ -866,46 +928,40 @@ class DuaPage extends StatelessWidget {
     ('Doa masuk rumah', 'بِسْمِ اللَّهِ وَلَجْنَا وَبِسْمِ اللَّهِ خَرَجْنَا', 'Bismillahi walajna wa bismillahi kharajna.', 'Dengan nama Allah kami masuk dan dengan nama Allah kami keluar.'),
   ];
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Doa Harian')),
-        body: ListView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(18),
-          children: [
-            for (final d in duas)
-              Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(18),
-                decoration: cardDecoration(),
-                child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-                  Text(d.$1, style: const TextStyle(fontWeight: FontWeight.w800, color: greenDark)),
-                  const SizedBox(height: 12),
-                  Text(d.$2, textAlign: TextAlign.right, textDirection: TextDirection.rtl, style: const TextStyle(fontSize: 25, height: 1.8)),
-                  const SizedBox(height: 8),
-                  Text(d.$3, style: const TextStyle(fontStyle: FontStyle.italic, color: green)),
-                  const SizedBox(height: 5),
-                  Text(d.$4, style: const TextStyle(color: muted)),
-                ]),
-              ),
-          ],
-        ),
+  Widget build(BuildContext context) => ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(18),
+        children: [
+          for (final d in duas)
+            Container(
+              margin: const EdgeInsets.only(bottom: 12),
+              padding: const EdgeInsets.all(18),
+              decoration: cardDecoration(),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                Text(d.$1, style: const TextStyle(fontWeight: FontWeight.w800, color: greenDark)),
+                const SizedBox(height: 12),
+                Text(d.$2, textAlign: TextAlign.right, textDirection: TextDirection.rtl, style: const TextStyle(fontSize: 25, height: 1.8)),
+                const SizedBox(height: 8),
+                Text(d.$3, style: const TextStyle(fontStyle: FontStyle.italic, color: green)),
+                const SizedBox(height: 5),
+                Text(d.$4, style: const TextStyle(color: muted)),
+              ]),
+            ),
+        ],
       );
 }
 
 class HadithPage extends StatelessWidget {
   const HadithPage({super.key});
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Hadis Pilihan')),
-        body: ListView(
-          physics: const BouncingScrollPhysics(),
-          padding: const EdgeInsets.all(18),
-          children: const [
-            InfoCard(icon: Icons.menu_book_rounded, title: 'Niat', text: '“Sesungguhnya amal itu tergantung niatnya.”\nHR. Bukhari dan Muslim.'),
-            InfoCard(icon: Icons.menu_book_rounded, title: 'Berkata baik', text: '“Barang siapa beriman kepada Allah dan hari akhir, hendaklah berkata baik atau diam.”\nHR. Bukhari dan Muslim.'),
-            InfoCard(icon: Icons.menu_book_rounded, title: 'Memudahkan', text: '“Mudahkanlah dan jangan mempersulit, berilah kabar gembira dan jangan membuat orang lari.”\nHR. Bukhari dan Muslim.'),
-          ],
-        ),
+  Widget build(BuildContext context) => ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(18),
+        children: const [
+          InfoCard(icon: Icons.menu_book_rounded, title: 'Niat', text: '“Sesungguhnya amal itu tergantung niatnya.”\nHR. Bukhari dan Muslim.'),
+          InfoCard(icon: Icons.menu_book_rounded, title: 'Berkata baik', text: '“Barang siapa beriman kepada Allah dan hari akhir, hendaklah berkata baik atau diam.”\nHR. Bukhari dan Muslim.'),
+          InfoCard(icon: Icons.menu_book_rounded, title: 'Memudahkan', text: '“Mudahkanlah dan jangan mempersulit, berilah kabar gembira dan jangan membuat orang lari.”\nHR. Bukhari dan Muslim.'),
+        ],
       );
 }
 
@@ -921,37 +977,35 @@ class _ZakatPageState extends State<ZakatPage> {
   @override
   void dispose() { c.dispose(); super.dispose(); }
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Kalkulator Zakat Mal')),
-        body: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-            TextField(
-              controller: c,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(labelText: 'Nilai harta (Rupiah)', filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)), prefixText: 'Rp '),
-              onChanged: (_) => setState(() => result = (double.tryParse(c.text.replaceAll('.', '').replaceAll(',', '')) ?? 0) * .025),
-            ),
-            const SizedBox(height: 18),
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(color: greenSoft, borderRadius: BorderRadius.circular(18)),
-              child: Text('Estimasi zakat 2,5%: Rp ${result.toStringAsFixed(0)}', style: const TextStyle(color: greenDark, fontSize: 19, fontWeight: FontWeight.w800)),
-            ),
-          ]),
-        ),
+  Widget build(BuildContext context) => ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        children: [
+          TextField(
+            controller: c,
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(labelText: 'Nilai harta (Rupiah)', filled: true, fillColor: Colors.white, border: OutlineInputBorder(borderRadius: BorderRadius.circular(16)), prefixText: 'Rp '),
+            onChanged: (_) => setState(() => result = (double.tryParse(c.text.replaceAll('.', '').replaceAll(',', '')) ?? 0) * .025),
+          ),
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(color: greenSoft, borderRadius: BorderRadius.circular(18)),
+            child: Text('Estimasi zakat 2,5%: Rp ${result.toStringAsFixed(0)}', style: const TextStyle(color: greenDark, fontSize: 19, fontWeight: FontWeight.w800)),
+          ),
+        ],
       );
 }
 
 class ReminderPage extends StatelessWidget {
   const ReminderPage({super.key});
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: const Text('Pengingat Salat')),
-        body: const Padding(
-          padding: EdgeInsets.all(20),
-          child: InfoCard(icon: Icons.notifications_active_rounded, title: 'Pengaturan notifikasi', text: 'Halaman jadwal salat sudah dapat mengambil waktu otomatis berdasarkan lokasi.'),
-        ),
+  Widget build(BuildContext context) => ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        children: const [
+          InfoCard(icon: Icons.notifications_active_rounded, title: 'Pengaturan notifikasi', text: 'Halaman jadwal salat sudah dapat mengambil waktu otomatis berdasarkan lokasi.'),
+        ],
       );
 }
 
@@ -1009,25 +1063,32 @@ class InfoCard extends StatelessWidget {
       );
 }
 
-Widget _navTile(BuildContext context, String title, IconData icon, Widget page) => Container(
+Widget _navTile(BuildContext context, String title, IconData icon, String pageTitle, Widget page) => Container(
       margin: const EdgeInsets.only(bottom: 10),
       decoration: cardDecoration(),
       child: ListTile(
         leading: Container(width: 40, height: 40, decoration: BoxDecoration(color: greenSoft, borderRadius: BorderRadius.circular(12)), child: Icon(icon, color: green, size: 20)),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.w700, color: ink)),
         trailing: const Icon(Icons.chevron_right_rounded, color: muted),
-        onTap: () => _push(context, page),
+        onTap: () => _push(context, pageTitle, page),
       ),
     );
 
-void _push(BuildContext context, Widget page) => Navigator.push(
+void _push(BuildContext context, String title, Widget page) {
+  final shell = context.findAncestorStateOfType<_MainShellState>();
+  if (shell != null) {
+    shell.openSubPage(title, page);
+  } else {
+    Navigator.push(
       context,
       PageRouteBuilder(
-        pageBuilder: (_, __, ___) => page,
+        pageBuilder: (_, __, ___) => Scaffold(appBar: AppBar(title: Text(title)), body: page),
         transitionDuration: const Duration(milliseconds: 260),
         transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
       ),
     );
+  }
+}
 
 BoxDecoration cardDecoration() => BoxDecoration(
       color: Colors.white,
