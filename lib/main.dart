@@ -258,8 +258,7 @@ class HomePage extends StatelessWidget {
                   child: const Text('ASSALAMU’ALAIKUM', style: TextStyle(color: Colors.white, letterSpacing: 1.3, fontSize: 10, fontWeight: FontWeight.w700)),
                 ),
                 const SizedBox(height: 14),
-                Text('${_greeting(now.hour)},
-di Muslimku', style: const TextStyle(color: Colors.white, fontSize: 26, height: 1.2, fontWeight: FontWeight.w800)),
+                Text('${_greeting(now.hour)},\ndi Muslimku', style: const TextStyle(color: Colors.white, fontSize: 26, height: 1.2, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),
                 Text('Teman ibadah harian Anda dengan jadwal salat, Al-Qur’an, dan doa.', style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13, height: 1.45)),
               ]),
@@ -517,8 +516,7 @@ class _QuranPageState extends State<QuranPage> {
       if (loading)
         const Expanded(child: Center(child: CircularProgressIndicator(color: green)))
       else if (error != null)
-        Expanded(child: Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('$error
-Periksa koneksi internet lalu buka ulang halaman.', textAlign: TextAlign.center))))
+        Expanded(child: Center(child: Padding(padding: const EdgeInsets.all(20), child: Text('$error\nPeriksa koneksi internet lalu buka ulang halaman.', textAlign: TextAlign.center))))
       else
         Expanded(
           child: RefreshIndicator(
@@ -1291,12 +1289,21 @@ class HadithPage extends StatelessWidget {
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(18),
         children: const [
-          InfoCard(icon: Icons.menu_book_rounded, title: 'Niat', text: '“Sesungguhnya amal itu tergantung niatnya.”
-HR. Bukhari dan Muslim.'),
-          InfoCard(icon: Icons.menu_book_rounded, title: 'Berkata baik', text: '“Barang siapa beriman kepada Allah dan hari akhir, hendaklah berkata baik atau diam.”
-HR. Bukhari dan Muslim.'),
-          InfoCard(icon: Icons.menu_book_rounded, title: 'Memudahkan', text: '“Mudahkanlah dan jangan mempersulit, berilah kabar gembira dan jangan membuat orang lari.”
-HR. Bukhari dan Muslim.'),
+          InfoCard(
+            icon: Icons.menu_book_rounded,
+            title: 'Niat',
+            text: '“Sesungguhnya amal itu tergantung niatnya.”\nHR. Bukhari dan Muslim.',
+          ),
+          InfoCard(
+            icon: Icons.menu_book_rounded,
+            title: 'Berkata baik',
+            text: '“Barang siapa beriman kepada Allah dan hari akhir, hendaklah berkata baik atau diam.”\nHR. Bukhari dan Muslim.',
+          ),
+          InfoCard(
+            icon: Icons.menu_book_rounded,
+            title: 'Memudahkan',
+            text: '“Mudahkanlah dan jangan mempersulit, berilah kabar gembira dan jangan membuat orang lari.”\nHR. Bukhari dan Muslim.',
+          ),
         ],
       );
 }
