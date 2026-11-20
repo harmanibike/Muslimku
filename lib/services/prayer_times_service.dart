@@ -19,7 +19,6 @@ class PrayerTimesResult {
   });
 }
 
-
 class SajadahPrayerTimesService {
   static const String _base = 'https://sajadah.org/api/v1';
   static const String _regionsCacheKey = 'sajadah_regions_cache_v1';
@@ -44,6 +43,7 @@ class SajadahPrayerTimesService {
     final prefs = await SharedPreferences.getInstance();
 
     Map<String, dynamic>? timetable;
+    var fromCache = false;
     try {
       final response = await http
           .get(Uri.parse('$_base/times/id/$regionId/${now.year}.json'))
@@ -69,6 +69,7 @@ class SajadahPrayerTimesService {
         throw Exception('Data offline rusak. Sambungkan internet lalu coba lagi.');
       }
       timetable = decoded;
+      fromCache = true;
     }
 
     final fields = (timetable['fields'] as List)
@@ -100,7 +101,7 @@ class SajadahPrayerTimesService {
     return PrayerTimesResult(
       regionName: (timetable['region']?['name'] ?? region['name'] ?? 'Wilayah terdekat').toString(),
       province: (timetable['region']?['province'] ?? region['province'] ?? '').toString(),
-      
+      fromCache: fromCache,
       times: {
         'Imsak': fieldValue('imsak'),
         'Subuh': fieldValue('fajr'),
