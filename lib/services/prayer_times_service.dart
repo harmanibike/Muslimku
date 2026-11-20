@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:math' as math;
 
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
@@ -20,99 +19,98 @@ class PrayerTimesResult {
 }
 
 class SajadahPrayerTimesService {
-  static const String _base = 'https://sajadah.org/api/v1';
-  static const String _regionsCacheKey = 'sajadah_regions_cache_v1';
-
   static Future<PrayerTimesResult> loadForCurrentLocation() async {
     final position = await _getPosition();
     final now = DateTime.now();
-    final date = '${now.year.toString().padLeft(4, '0')}-'
+
+    // Format tanggal untuk Aladhan API: DD-MM-YYYY
+    final dateStr = '${now.day.toString().padLeft(2, '0')}-'
         '${now.month.toString().padLeft(2, '0')}-'
-        '${now.day.toString().padLeft(2, '0')}';
+        '${now.year.toString().padLeft(4, '0')}';
 
-    final regions = await _loadRegions();
-    final region = _nearestIndonesianRegion(
-      regions,
-      position.latitude,
-      position.longitude,
-      now.year,
-    );
-
-    final regionId = region['id'].toString();
-    final cacheKey = 'sajadah_times_${regionId}_${now.year}';
+    final lat = position.latitude;
+    final lng = position.longitude;
+    final cacheKey = 'aladhan_times_$dateStr';
     final prefs = await SharedPreferences.getInstance();
 
-    Map<String, dynamic>? timetable;
+    Map<String, dynamic>? data;
     var fromCache = false;
+
     try {
-      final response = await http
-          .get(Uri.parse('$_base/times/id/$regionId/${now.year}.json'))
-          .timeout(const Duration(seconds: 25));
+      // method=20 adalah metode Kementerian Agama Republik Indonesia (KEMENAG)
+      final uri = Uri.parse(
+        'https://api.aladhan.com/v1/timings/$dateStr'
+        '?latitude=$lat&longitude=$lng&method=20',
+      );
+      final response = await http.get(
+        uri,
+        headers: {'Accept': 'application/json'},
+      ).timeout(const Duration(seconds: 20));
+
       if (response.statusCode != 200) {
-        throw Exception('Server jadwal mengembalikan ${response.statusCode}.');
+        throw Exception('Server jadwal mengembalikan HTTP ${response.statusCode}.');
       }
+
       final decoded = jsonDecode(response.body);
-      if (decoded is! Map<String, dynamic> ||
-          decoded['days'] is! List ||
-          decoded['fields'] is! List) {
-        throw Exception('Format data jadwal tidak sesuai.');
+      if (decoded is! Map<String, dynamic> || decoded['data'] is! Map) {
+        throw Exception('Format data jadwal dari server tidak sesuai.');
       }
-      timetable = decoded;
-      await prefs.setString(cacheKey, response.body);
-    } catch (_) {
+
+      data = Map<String, dynamic>.from(decoded['data'] as Map);
+      await prefs.setString(cacheKey, jsonEncode(data));
+    } catch (e) {
       final cached = prefs.getString(cacheKey);
       if (cached == null) {
-        rethrow;
+        throw Exception('Gagal memuat jadwal salat: $e');
       }
       final decoded = jsonDecode(cached);
       if (decoded is! Map<String, dynamic>) {
         throw Exception('Data offline rusak. Sambungkan internet lalu coba lagi.');
       }
-      timetable = decoded;
+      data = decoded;
       fromCache = true;
     }
 
-    final fields = (timetable['fields'] as List)
-        .map((value) => value.toString())
-        .toList();
-    final dateIndex = fields.indexOf('date');
-    if (dateIndex < 0) throw Exception('Kolom tanggal tidak ditemukan.');
+    final timings = data['timings'] as Map<String, dynamic>? ?? {};
+    final meta = data['meta'] as Map<String, dynamic>? ?? {};
+    final timezone = (meta['timezone'] ?? 'Asia/Jakarta').toString();
 
-    final rows = timetable['days'] as List;
-    List<dynamic>? todayRow;
-    for (final item in rows) {
-      if (item is List &&
-          dateIndex < item.length &&
-          item[dateIndex].toString() == date) {
-        todayRow = item;
-        break;
-      }
-    }
-    if (todayRow == null) {
-      throw Exception('Jadwal untuk tanggal $date belum tersedia.');
+    String cleanTime(String key) {
+      final raw = timings[key]?.toString() ?? '--:--';
+      // Hapus embel-embel zona waktu jika ada, misal "04:15 (WIB)" -> "04:15"
+      return raw.split(' ').first;
     }
 
-    String fieldValue(String key) {
-      final index = fields.indexOf(key);
-      if (index < 0 || index >= todayRow!.length) return '--:--';
-      return todayRow[index].toString();
-    }
+    final sunrise = cleanTime('Sunrise');
+    final dhuha = _addMinutes(sunrise, 20);
 
     return PrayerTimesResult(
-      regionName: (timetable['region']?['name'] ?? region['name'] ?? 'Wilayah terdekat').toString(),
-      province: (timetable['region']?['province'] ?? region['province'] ?? '').toString(),
+      regionName: 'Lokasi GPS Terdeteksi',
+      province: '${lat.toStringAsFixed(3)}, ${lng.toStringAsFixed(3)} • $timezone',
       fromCache: fromCache,
       times: {
-        'Imsak': fieldValue('imsak'),
-        'Subuh': fieldValue('fajr'),
-        'Terbit': fieldValue('sunrise'),
-        'Duha': fieldValue('dhuha'),
-        'Zuhur': fieldValue('dhuhr'),
-        'Asar': fieldValue('asr'),
-        'Magrib': fieldValue('maghrib'),
-        'Isya': fieldValue('isha'),
+        'Imsak': cleanTime('Imsak'),
+        'Subuh': cleanTime('Fajr'),
+        'Terbit': sunrise,
+        'Duha': dhuha,
+        'Zuhur': cleanTime('Dhuhr'),
+        'Asar': cleanTime('Asr'),
+        'Magrib': cleanTime('Maghrib'),
+        'Isya': cleanTime('Isha'),
       },
     );
+  }
+
+  static String _addMinutes(String hhmm, int minutesToAdd) {
+    final parts = hhmm.split(':');
+    if (parts.length != 2) return '--:--';
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    if (h == null || m == null) return '--:--';
+    final total = (h * 60 + m + minutesToAdd) % (24 * 60);
+    final newH = (total ~/ 60).toString().padLeft(2, '0');
+    final newM = (total % 60).toString().padLeft(2, '0');
+    return '$newH:$newM';
   }
 
   static Future<Position> _getPosition() async {
@@ -170,80 +168,4 @@ class SajadahPrayerTimesService {
       );
     }
   }
-
-  static Future<List<dynamic>> _loadRegions() async {
-    final prefs = await SharedPreferences.getInstance();
-    try {
-      final response = await http
-          .get(Uri.parse('$_base/regions.json'))
-          .timeout(const Duration(seconds: 25));
-      if (response.statusCode != 200) {
-        throw Exception('Daftar wilayah tidak dapat diunduh.');
-      }
-      final decoded = jsonDecode(response.body);
-      if (decoded is! Map<String, dynamic> || decoded['regions'] is! List) {
-        throw Exception('Format daftar wilayah tidak sesuai.');
-      }
-      await prefs.setString(_regionsCacheKey, response.body);
-      return decoded['regions'] as List<dynamic>;
-    } catch (_) {
-      final cached = prefs.getString(_regionsCacheKey);
-      if (cached == null) {
-        throw Exception('Daftar wilayah belum tersimpan. Hubungkan internet untuk penggunaan pertama.');
-      }
-      final decoded = jsonDecode(cached);
-      if (decoded is! Map<String, dynamic> || decoded['regions'] is! List) {
-        throw Exception('Cache daftar wilayah rusak. Hubungkan internet lalu coba lagi.');
-      }
-      return decoded['regions'] as List<dynamic>;
-    }
-  }
-
-  static Map<String, dynamic> _nearestIndonesianRegion(
-    List<dynamic> regions,
-    double latitude,
-    double longitude,
-    int year,
-  ) {
-    Map<String, dynamic>? nearest;
-    var bestDistance = double.infinity;
-
-    for (final item in regions) {
-      if (item is! Map) continue;
-      if (item['country']?.toString().toUpperCase() != 'ID') continue;
-      final years = item['years'];
-      if (years is List && !years.any((value) => value.toString() == '$year')) {
-        continue;
-      }
-
-      final lat = double.tryParse(item['lat']?.toString() ?? '');
-      final lng = double.tryParse(item['lng']?.toString() ?? '');
-      if (lat == null || lng == null) continue;
-
-      final distance = _distanceKm(latitude, longitude, lat, lng);
-      if (distance < bestDistance) {
-        bestDistance = distance;
-        nearest = Map<String, dynamic>.from(item);
-      }
-    }
-
-    if (nearest == null) {
-      throw Exception('Wilayah terdekat tidak ditemukan dalam data jadwal.');
-    }
-    return nearest;
-  }
-
-  static double _distanceKm(double lat1, double lon1, double lat2, double lon2) {
-    const earthRadius = 6371.0;
-    final dLat = _radians(lat2 - lat1);
-    final dLon = _radians(lon2 - lon1);
-    final a = math.sin(dLat / 2) * math.sin(dLat / 2) +
-        math.cos(_radians(lat1)) *
-            math.cos(_radians(lat2)) *
-            math.sin(dLon / 2) *
-            math.sin(dLon / 2);
-    return earthRadius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
-  }
-
-  static double _radians(double degrees) => degrees * math.pi / 180;
 }
