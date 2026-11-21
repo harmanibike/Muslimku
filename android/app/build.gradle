@@ -29,8 +29,8 @@ android {
         applicationId "com.muslimku.app"
         minSdk 23
         targetSdk flutter.targetSdkVersion
-        versionCode 6
-        versionName "1.3.1"
+        versionCode 7
+        versionName "1.3.2"
         multiDexEnabled true
     }
 
@@ -47,6 +47,11 @@ android {
 
     buildTypes {
         release {
+            // Plugin notifikasi memakai reflection untuk membaca jadwal
+            // tersimpan. Jangan biarkan R8 menghapus metadata generic-nya.
+            minifyEnabled false
+            shrinkResources false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             if (keystorePropertiesFile.exists()) {
                 signingConfig signingConfigs.release
             } else {
