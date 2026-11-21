@@ -11,6 +11,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/prayer_times_service.dart';
+import 'screens/sholawat_page.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -508,6 +509,7 @@ class _HomePageState extends State<HomePage> {
             QuickTile('Arah kiblat', Icons.explore_rounded, const Color(0xFFFEF3E2), const Color(0xFFC2780A), () => _push(context, 'Arah Kiblat', const QiblaPage())),
             QuickTile('Tasbih', Icons.fingerprint_rounded, const Color(0xFFE8F5F3), const Color(0xFF0F766E), () => _push(context, 'Tasbih Digital', const TasbihPage())),
             QuickTile('Doa harian', Icons.volunteer_activism_rounded, const Color(0xFFFCEBF0), const Color(0xFFB83260), () => _push(context, 'Doa Harian', const DuaPage())),
+            QuickTile('Sholawat', Icons.favorite_rounded, const Color(0xFFFCEBF0), const Color(0xFFB83260), () => _push(context, 'Sholawat', const SholawatPage()),),
           ],
         ),
         const SizedBox(height: 24),
@@ -1995,8 +1997,10 @@ class MorePage extends StatelessWidget {
           _navTile(context, 'Hadis pilihan', Icons.auto_stories_rounded, 'Hadis Pilihan', const HadithPage()),
           _navTile(context, 'Kalkulator zakat', Icons.calculate_rounded, 'Kalkulator Zakat Mal', const ZakatPage()),
           _navTile(context, 'Pengingat salat', Icons.notifications_active_rounded, 'Pengingat Salat', const ReminderPage()),
+          _navTile(context, 'Sholawat', Icons.favorite_rounded, 'Sholawat', const SholawatPage(),),
           const SizedBox(height: 14),
           const InfoCard(icon: Icons.info_outline_rounded, title: 'Tentang Muslimku', text: 'Versi 1.4.0 • Aplikasi pendamping ibadah.'),
+          
         ],
       );
 }
