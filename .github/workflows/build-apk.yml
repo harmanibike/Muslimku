@@ -1,3 +1,4 @@
+
 name: Build Muslimku APK
 
 on:
@@ -39,13 +40,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-muslimku-
 
-      # The supplied source archive does not include Gradle Wrapper files.
-      # Generate any missing Android platform scaffolding before building.
       - name: Complete Android platform scaffolding
         run: flutter create --platforms=android --project-name muslimku .
 
       - name: Install dependencies
         run: flutter pub get
+
+      - name: Generate app launcher icons
+        run: dart run flutter_launcher_icons
 
       - name: Build release APK
         uses: nick-fields/retry@v3
