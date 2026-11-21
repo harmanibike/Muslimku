@@ -20,12 +20,24 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
+          cache: 'gradle'
 
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
+
+      - name: Cache Gradle & Pub packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.pub-cache
+          key: ${{ runner.os }}-muslimku-${{ hashFiles('**/pubspec.lock', '**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-muslimku-
 
       # The supplied source archive does not include Gradle Wrapper files.
       # Generate any missing Android platform scaffolding before building.
@@ -36,7 +48,12 @@ jobs:
         run: flutter pub get
 
       - name: Build release APK
-        run: flutter build apk --release
+        uses: nick-fields/retry@v3
+        with:
+          timeout_minutes: 15
+          max_attempts: 4
+          retry_wait_seconds: 20
+          command: flutter build apk --release
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
