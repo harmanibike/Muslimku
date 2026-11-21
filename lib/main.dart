@@ -221,15 +221,168 @@ class _MainShellState extends State<MainShell> {
   }
 }
 
-class HomePage extends StatelessWidget {
+class QuranBookmarkStore {
+  static const _lastReadKey = 'quran_last_read';
+  static const _bookmarksKey = 'quran_bookmarks';
+
+  static Future<Map<String, dynamic>?> getLastRead() async {
+    final p = await SharedPreferences.getInstance();
+    final raw = p.getString(_lastReadKey);
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      return Map<String, dynamic>.from(jsonDecode(raw) as Map);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static Future<void> setLastRead({
+    required int surahNumber,
+    required String surahName,
+    required int ayahNumber,
+  }) async {
+    final p = await SharedPreferences.getInstance();
+    await p.setString(
+      _lastReadKey,
+      jsonEncode({
+        'surahNumber': surahNumber,
+        'surahName': surahName,
+        'ayahNumber': ayahNumber,
+        'updatedAt': DateTime.now().toIso8601String(),
+      }),
+    );
+  }
+
+  static Future<List<Map<String, dynamic>>> getBookmarks() async {
+    final p = await SharedPreferences.getInstance();
+    final list = p.getStringList(_bookmarksKey) ?? const [];
+    final result = <Map<String, dynamic>>[];
+    for (final item in list) {
+      try {
+        result.add(Map<String, dynamic>.from(jsonDecode(item) as Map));
+      } catch (_) {}
+    }
+    return result;
+  }
+
+  static Future<bool> toggleBookmark({
+    required int surahNumber,
+    required String surahName,
+    required int ayahNumber,
+    required String arabText,
+    required String translation,
+  }) async {
+    final p = await SharedPreferences.getInstance();
+    final current = await getBookmarks();
+    final id = '$surahNumber:$ayahNumber';
+    final existsIdx = current.indexWhere((e) => '${e['surahNumber']}:${e['ayahNumber']}' == id);
+    bool added;
+    if (existsIdx >= 0) {
+      current.removeAt(existsIdx);
+      added = false;
+    } else {
+      current.insert(0, {
+        'surahNumber': surahNumber,
+        'surahName': surahName,
+        'ayahNumber': ayahNumber,
+        'arabText': arabText,
+        'translation': translation,
+        'savedAt': DateTime.now().toIso8601String(),
+      });
+      added = true;
+    }
+    await p.setStringList(_bookmarksKey, current.map((e) => jsonEncode(e)).toList());
+    return added;
+  }
+
+  static Future<void> removeBookmark(int surahNumber, int ayahNumber) async {
+    final p = await SharedPreferences.getInstance();
+    final current = await getBookmarks();
+    current.removeWhere((e) => e['surahNumber'] == surahNumber && e['ayahNumber'] == ayahNumber);
+    await p.setStringList(_bookmarksKey, current.map((e) => jsonEncode(e)).toList());
+  }
+}
+
+class HomePage extends StatefulWidget {
   final ValueChanged<int> onSelectTab;
   const HomePage({super.key, required this.onSelectTab});
 
+  @override
+  State<HomePage> createState() => _HomePageState();
+}
+
+class _HomePageState extends State<HomePage> {
+  PrayerTimesResult? _prayerResult;
+  Map<String, dynamic>? _lastRead;
+  Timer? _ticker;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadDashboardData();
+    _ticker = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadDashboardData() async {
+    final lr = await QuranBookmarkStore.getLastRead();
+    if (mounted) setState(() => _lastRead = lr);
+    try {
+      final pt = await AladhanPrayerTimesService.loadForCurrentLocation();
+      if (mounted) setState(() => _prayerResult = pt);
+    } catch (_) {}
+  }
+
   String _greeting(int h) => h < 11 ? 'Selamat pagi' : h < 15 ? 'Selamat siang' : h < 18 ? 'Selamat sore' : 'Selamat malam';
+
+  (String name, String time, Duration remaining)? _nextPrayerCountdown() {
+    if (_prayerResult == null) return null;
+    final now = DateTime.now();
+    for (final e in _prayerResult!.times.entries) {
+      if (e.key == 'Imsak' || e.key == 'Terbit' || e.key == 'Duha') continue;
+      final p = e.value.split(':');
+      if (p.length != 2) continue;
+      final h = int.tryParse(p[0]), m = int.tryParse(p[1]);
+      if (h == null || m == null) continue;
+      final target = DateTime(now.year, now.month, now.day, h, m);
+      if (target.isAfter(now)) {
+        return (e.key, e.value, target.difference(now));
+      }
+    }
+    final subuh = _prayerResult!.times['Subuh'];
+    if (subuh != null) {
+      final p = subuh.split(':');
+      if (p.length == 2) {
+        final h = int.tryParse(p[0]), m = int.tryParse(p[1]);
+        if (h != null && m != null) {
+          final tomorrowSubuh = DateTime(now.year, now.month, now.day + 1, h, m);
+          return ('Subuh', subuh, tomorrowSubuh.difference(now));
+        }
+      }
+    }
+    return null;
+  }
+
+  String _formatDuration(Duration d) {
+    final totalMin = d.inMinutes;
+    final h = totalMin ~/ 60;
+    final m = totalMin % 60;
+    if (h > 0) return '$h jam $m mnt lagi';
+    return '$m menit lagi';
+  }
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
+    final nextInfo = _nextPrayerCountdown();
+
     return ListView(
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(18, 6, 18, 28),
@@ -270,10 +423,74 @@ class HomePage extends StatelessWidget {
                 Text('${_greeting(now.hour)},\ndi Muslimku', style: const TextStyle(color: Colors.white, fontSize: 26, height: 1.2, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 8),
                 Text('Teman ibadah harian Anda dengan jadwal salat, Al-Qur’an, dan doa.', style: TextStyle(color: Colors.white.withOpacity(0.85), fontSize: 13, height: 1.45)),
+                if (nextInfo != null) ...[
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.16),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white.withOpacity(0.2)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.access_time_filled_rounded, color: Colors.white, size: 18),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Menuju ${nextInfo.$1} (${nextInfo.$2})',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
+                          child: Text(
+                            _formatDuration(nextInfo.$3),
+                            style: const TextStyle(color: greenDark, fontWeight: FontWeight.w800, fontSize: 11),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ]),
             ),
           ]),
         ),
+        if (_lastRead != null) ...[
+          const SizedBox(height: 16),
+          Container(
+            decoration: cardDecoration(),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              leading: Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(color: greenSoft, borderRadius: BorderRadius.circular(14)),
+                child: const Icon(Icons.bookmark_rounded, color: green, size: 22),
+              ),
+              title: const Text('Terakhir Dibaca', style: TextStyle(fontSize: 12, color: muted, fontWeight: FontWeight.w600)),
+              subtitle: Text(
+                '${_lastRead!['surahName']} • Ayat ${_lastRead!['ayahNumber']}',
+                style: const TextStyle(fontSize: 15, color: ink, fontWeight: FontWeight.w800),
+              ),
+              trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 15, color: green),
+              onTap: () async {
+                await _pushAsync(
+                  context,
+                  _lastRead!['surahName']?.toString() ?? 'Al-Qur’an',
+                  SurahPage(
+                    number: (_lastRead!['surahNumber'] as num).toInt(),
+                    name: _lastRead!['surahName']?.toString() ?? '',
+                    initialAyah: (_lastRead!['ayahNumber'] as num).toInt(),
+                  ),
+                );
+                _loadDashboardData();
+              },
+            ),
+          ),
+        ],
         const SizedBox(height: 24),
         const SectionTitle('Mulai ibadah hari ini'),
         const SizedBox(height: 14),
@@ -285,9 +502,9 @@ class HomePage extends StatelessWidget {
           mainAxisSpacing: 12,
           childAspectRatio: 0.92,
           children: [
-            QuickTile('Jadwal salat', Icons.access_time_filled_rounded, const Color(0xFFE6F4EC), green, () => onSelectTab(1)),
-            QuickTile('Al-Qur’an', Icons.menu_book_rounded, const Color(0xFFE6F2F8), const Color(0xFF1A6B96), () => onSelectTab(2)),
-            QuickTile('Murottal', Icons.headphones_rounded, const Color(0xFFF3ECFA), const Color(0xFF6B3FA0), () => onSelectTab(2)),
+            QuickTile('Jadwal salat', Icons.access_time_filled_rounded, const Color(0xFFE6F4EC), green, () => widget.onSelectTab(1)),
+            QuickTile('Al-Qur’an', Icons.menu_book_rounded, const Color(0xFFE6F2F8), const Color(0xFF1A6B96), () => widget.onSelectTab(2)),
+            QuickTile('Murottal', Icons.headphones_rounded, const Color(0xFFF3ECFA), const Color(0xFF6B3FA0), () => widget.onSelectTab(2)),
             QuickTile('Arah kiblat', Icons.explore_rounded, const Color(0xFFFEF3E2), const Color(0xFFC2780A), () => _push(context, 'Arah Kiblat', const QiblaPage())),
             QuickTile('Tasbih', Icons.fingerprint_rounded, const Color(0xFFE8F5F3), const Color(0xFF0F766E), () => _push(context, 'Tasbih Digital', const TasbihPage())),
             QuickTile('Doa harian', Icons.volunteer_activism_rounded, const Color(0xFFFCEBF0), const Color(0xFFB83260), () => _push(context, 'Doa Harian', const DuaPage())),
@@ -313,11 +530,21 @@ class _PrayerPageState extends State<PrayerPage> {
   PrayerTimesResult? result;
   String? error;
   bool loading = false;
+  Timer? _ticker;
 
   @override
   void initState() {
     super.initState();
     _load();
+    _ticker = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
   }
 
   Future<void> _load() async {
@@ -354,6 +581,24 @@ class _PrayerPageState extends State<PrayerPage> {
     return 'Subuh';
   }
 
+  String _countdownText(Map<String, String> times, String nextName) {
+    final raw = times[nextName];
+    if (raw == null) return '';
+    final p = raw.split(':');
+    if (p.length != 2) return '';
+    final h = int.tryParse(p[0]), m = int.tryParse(p[1]);
+    if (h == null || m == null) return '';
+    final now = DateTime.now();
+    var target = DateTime(now.year, now.month, now.day, h, m);
+    if (!target.isAfter(now)) {
+      target = target.add(const Duration(days: 1));
+    }
+    final diff = target.difference(now);
+    final hrs = diff.inHours;
+    final mins = diff.inMinutes % 60;
+    return hrs > 0 ? '$hrs jam $mins mnt lagi' : '$mins menit lagi';
+  }
+
   IconData _icon(String name) => switch (name) {
         'Imsak' => Icons.nights_stay_rounded,
         'Subuh' => Icons.wb_twilight_rounded,
@@ -368,6 +613,8 @@ class _PrayerPageState extends State<PrayerPage> {
   @override
   Widget build(BuildContext context) {
     final nextName = result != null ? _nextPrayer(result!.times) : null;
+    final countdown = (result != null && nextName != null) ? _countdownText(result!.times, nextName) : '';
+
     return RefreshIndicator(
       color: green,
       onRefresh: _load,
@@ -382,27 +629,48 @@ class _PrayerPageState extends State<PrayerPage> {
               borderRadius: BorderRadius.circular(24),
               boxShadow: [BoxShadow(color: green.withOpacity(0.25), blurRadius: 18, offset: const Offset(0, 8))],
             ),
-            child: Row(children: [
-              Container(
-                width: 46,
-                height: 46,
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.18), borderRadius: BorderRadius.circular(15)),
-                child: const Icon(Icons.location_on_rounded, color: Colors.white, size: 26),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Lokasi perangkat', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12)),
-                  Text(result?.regionName ?? 'Mendeteksi lokasi...', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
-                  if (result != null) Text(result!.province, style: TextStyle(color: Colors.white.withOpacity(0.82), fontSize: 12)),
+            child: Column(
+              children: [
+                Row(children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.18), borderRadius: BorderRadius.circular(15)),
+                    child: const Icon(Icons.location_on_rounded, color: Colors.white, size: 26),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                      Text('Lokasi perangkat', style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 12)),
+                      Text(result?.regionName ?? 'Mendeteksi lokasi...', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w800)),
+                      if (result != null) Text(result!.province, style: TextStyle(color: Colors.white.withOpacity(0.82), fontSize: 12)),
+                    ]),
+                  ),
+                  Material(
+                    color: Colors.white.withOpacity(0.16),
+                    borderRadius: BorderRadius.circular(14),
+                    child: IconButton(onPressed: loading ? null : _load, icon: const Icon(Icons.refresh_rounded, color: Colors.white)),
+                  ),
                 ]),
-              ),
-              Material(
-                color: Colors.white.withOpacity(0.16),
-                borderRadius: BorderRadius.circular(14),
-                child: IconButton(onPressed: loading ? null : _load, icon: const Icon(Icons.refresh_rounded, color: Colors.white)),
-              ),
-            ]),
+                if (nextName != null && countdown.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.16),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text('Berikutnya: $nextName', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 12)),
+                        Text(countdown, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 12)),
+                      ],
+                    ),
+                  ),
+                ],
+              ],
+            ),
           ),
           const SizedBox(height: 20),
           if (loading) const Center(child: Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator(color: green))),
@@ -471,11 +739,24 @@ class _QuranPageState extends State<QuranPage> {
   String query = '';
   bool loading = true;
   String? error;
+  Map<String, dynamic>? lastRead;
+  int bookmarkCount = 0;
 
   @override
   void initState() {
     super.initState();
+    _loadSavedState();
     _fetch();
+  }
+
+  Future<void> _loadSavedState() async {
+    final lr = await QuranBookmarkStore.getLastRead();
+    final bm = await QuranBookmarkStore.getBookmarks();
+    if (!mounted) return;
+    setState(() {
+      lastRead = lr;
+      bookmarkCount = bm.length;
+    });
   }
 
   Future<void> _fetch() async {
@@ -493,6 +774,24 @@ class _QuranPageState extends State<QuranPage> {
     }
   }
 
+  Future<void> _openSurah({
+    required int number,
+    required String name,
+    int? initialAyah,
+  }) async {
+    _push(
+      context,
+      name,
+      SurahPage(
+        number: number,
+        name: name,
+        allSurahs: surahs,
+        initialAyah: initialAyah,
+        onSavedChanged: _loadSavedState,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = query.isEmpty
@@ -507,21 +806,120 @@ class _QuranPageState extends State<QuranPage> {
 
     return Column(children: [
       Padding(
-        padding: const EdgeInsets.fromLTRB(18, 8, 18, 12),
-        child: Container(
-          decoration: cardDecoration(),
-          child: TextField(
-            onChanged: (v) => setState(() => query = v.trim()),
-            decoration: const InputDecoration(
-              hintText: 'Cari surah (contoh: Yasin, Al-Kahfi)...',
-              hintStyle: TextStyle(color: muted, fontSize: 14),
-              prefixIcon: Icon(Icons.search_rounded, color: green),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.symmetric(vertical: 15),
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 10),
+        child: Row(
+          children: [
+            Expanded(
+              child: Container(
+                decoration: cardDecoration(),
+                child: TextField(
+                  onChanged: (v) => setState(() => query = v.trim()),
+                  decoration: const InputDecoration(
+                    hintText: 'Cari surah (contoh: Yasin, Al-Kahfi)...',
+                    hintStyle: TextStyle(color: muted, fontSize: 14),
+                    prefixIcon: Icon(Icons.search_rounded, color: green),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.symmetric(vertical: 15),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Material(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(18),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(18),
+                onTap: () => _push(
+                  context,
+                  'Ayat Tersimpan',
+                  BookmarksPage(
+                    allSurahs: surahs,
+                    onChanged: _loadSavedState,
+                  ),
+                ),
+                child: Container(
+                  height: 52,
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: const Color(0xFFE7EFEA)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.bookmarks_rounded, color: green, size: 21),
+                      if (bookmarkCount > 0) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(color: greenSoft, borderRadius: BorderRadius.circular(10)),
+                          child: Text(
+                            '$bookmarkCount',
+                            style: const TextStyle(color: greenDark, fontWeight: FontWeight.w800, fontSize: 12),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+      if (lastRead != null)
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 0, 18, 10),
+          child: Material(
+            color: greenSoft,
+            borderRadius: BorderRadius.circular(18),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(18),
+              onTap: () => _openSurah(
+                number: (lastRead!['surahNumber'] as num).toInt(),
+                name: lastRead!['surahName']?.toString() ?? 'Surah',
+                initialAyah: (lastRead!['ayahNumber'] as num).toInt(),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 34,
+                      height: 34,
+                      decoration: BoxDecoration(color: green, borderRadius: BorderRadius.circular(11)),
+                      child: const Icon(Icons.auto_stories_rounded, color: Colors.white, size: 18),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Terakhir dibaca',
+                            style: TextStyle(fontSize: 11, color: greenDark, fontWeight: FontWeight.w700),
+                          ),
+                          Text(
+                            '${lastRead!['surahName']} • Ayat ${lastRead!['ayahNumber']}',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontSize: 14, color: ink, fontWeight: FontWeight.w800),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const Text(
+                      'Lanjut',
+                      style: TextStyle(fontSize: 12, color: green, fontWeight: FontWeight.w800),
+                    ),
+                    const SizedBox(width: 2),
+                    const Icon(Icons.chevron_right_rounded, color: green, size: 20),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
-      ),
       if (loading)
         const Expanded(child: Center(child: CircularProgressIndicator(color: green)))
       else if (error != null)
@@ -530,7 +928,10 @@ class _QuranPageState extends State<QuranPage> {
         Expanded(
           child: RefreshIndicator(
             color: green,
-            onRefresh: _fetch,
+            onRefresh: () async {
+              await _loadSavedState();
+              await _fetch();
+            },
             child: ListView.builder(
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.fromLTRB(18, 0, 18, 24),
@@ -538,6 +939,7 @@ class _QuranPageState extends State<QuranPage> {
               itemBuilder: (c, i) {
                 final s = filtered[i] as Map<String, dynamic>;
                 final surahName = s['namaLatin']?.toString() ?? '';
+                final isLastReadSurah = lastRead != null && lastRead!['surahNumber'] == s['nomor'];
                 return Container(
                   margin: const EdgeInsets.only(bottom: 10),
                   decoration: cardDecoration(),
@@ -545,21 +947,25 @@ class _QuranPageState extends State<QuranPage> {
                     leading: Container(
                       width: 42,
                       height: 42,
-                      decoration: BoxDecoration(color: greenSoft, borderRadius: BorderRadius.circular(14)),
+                      decoration: BoxDecoration(
+                        color: isLastReadSurah ? green : greenSoft,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
                       alignment: Alignment.center,
-                      child: Text('${s['nomor']}', style: const TextStyle(color: greenDark, fontWeight: FontWeight.w800)),
+                      child: Text(
+                        '${s['nomor']}',
+                        style: TextStyle(
+                          color: isLastReadSurah ? Colors.white : greenDark,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
                     ),
                     title: Text(surahName, style: const TextStyle(fontWeight: FontWeight.w800, color: ink)),
                     subtitle: Text('${s['arti'] ?? ''} • ${s['jumlahAyat'] ?? ''} ayat', style: const TextStyle(color: muted, fontSize: 12)),
                     trailing: Text(s['nama']?.toString() ?? '', style: const TextStyle(fontSize: 20, color: greenDark)),
-                    onTap: () => _push(
-                      context,
-                      surahName,
-                      SurahPage(
-                        number: s['nomor'] as int,
-                        name: surahName,
-                        allSurahs: surahs,
-                      ),
+                    onTap: () => _openSurah(
+                      number: s['nomor'] as int,
+                      name: surahName,
                     ),
                   ),
                 );
@@ -571,16 +977,172 @@ class _QuranPageState extends State<QuranPage> {
   }
 }
 
+class BookmarksPage extends StatefulWidget {
+  final List<dynamic> allSurahs;
+  final VoidCallback? onChanged;
+
+  const BookmarksPage({
+    super.key,
+    this.allSurahs = const [],
+    this.onChanged,
+  });
+
+  @override
+  State<BookmarksPage> createState() => _BookmarksPageState();
+}
+
+class _BookmarksPageState extends State<BookmarksPage> {
+  List<Map<String, dynamic>> bookmarks = [];
+  bool loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    final list = await QuranBookmarkStore.getBookmarks();
+    if (!mounted) return;
+    setState(() {
+      bookmarks = list;
+      loading = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Center(child: CircularProgressIndicator(color: green));
+    }
+    if (bookmarks.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.bookmark_border_rounded, size: 54, color: muted),
+              SizedBox(height: 12),
+              Text(
+                'Belum ada ayat tersimpan',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: ink),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'Ketuk ikon bookmark pada ayat saat membaca Al-Qur’an untuk menyimpannya di sini.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: muted, height: 1.45),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.builder(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
+      itemCount: bookmarks.length,
+      itemBuilder: (context, index) {
+        final item = bookmarks[index];
+        final surahNum = (item['surahNumber'] as num).toInt();
+        final ayahNum = (item['ayahNumber'] as num).toInt();
+        final surahName = item['surahName']?.toString() ?? 'Surah $surahNum';
+
+        return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.all(16),
+          decoration: cardDecoration(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(color: greenSoft, borderRadius: BorderRadius.circular(10)),
+                    child: Text(
+                      '$surahName • Ayat $ayahNum',
+                      style: const TextStyle(color: greenDark, fontWeight: FontWeight.w800, fontSize: 12),
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: 'Hapus bookmark',
+                    onPressed: () async {
+                      await QuranBookmarkStore.removeBookmark(surahNum, ayahNum);
+                      widget.onChanged?.call();
+                      await _load();
+                    },
+                    icon: const Icon(Icons.delete_outline_rounded, size: 20, color: muted),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                item['arabText']?.toString() ?? '',
+                textAlign: TextAlign.right,
+                textDirection: TextDirection.rtl,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 23, height: 1.9, color: ink),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                item['translation']?.toString() ?? '',
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: muted, fontSize: 12.5, height: 1.45),
+              ),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerRight,
+                child: TextButton.icon(
+                  onPressed: () => _push(
+                    context,
+                    surahName,
+                    SurahPage(
+                      number: surahNum,
+                      name: surahName,
+                      allSurahs: widget.allSurahs,
+                      initialAyah: ayahNum,
+                      onSavedChanged: () {
+                        widget.onChanged?.call();
+                        _load();
+                      },
+                    ),
+                  ),
+                  icon: const Icon(Icons.open_in_new_rounded, size: 16, color: green),
+                  label: const Text(
+                    'Buka di surah',
+                    style: TextStyle(color: green, fontWeight: FontWeight.w700, fontSize: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 class SurahPage extends StatefulWidget {
   final int number;
   final String name;
   final List<dynamic> allSurahs;
+  final int? initialAyah;
+  final VoidCallback? onSavedChanged;
 
   const SurahPage({
     super.key,
     required this.number,
     required this.name,
     this.allSurahs = const [],
+    this.initialAyah,
+    this.onSavedChanged,
   });
 
   @override
@@ -590,20 +1152,38 @@ class SurahPage extends StatefulWidget {
 class _SurahPageState extends State<SurahPage> {
   late int _currentNumber;
   late String _currentName;
+  int? _highlightedAyah;
   Map<String, dynamic>? data;
   String? error;
   bool loading = true;
   final player = AudioPlayer();
   String? playingQari;
 
+  Set<String> _bookmarkedIds = {};
+  Map<String, dynamic>? _lastRead;
+  final ScrollController _scrollController = ScrollController();
+  final Map<int, GlobalKey> _ayahKeys = {};
+
   @override
   void initState() {
     super.initState();
     _currentNumber = widget.number;
     _currentName = widget.name;
+    _highlightedAyah = widget.initialAyah;
+    _loadBookmarksAndLastRead();
     _get();
     player.onPlayerComplete.listen((_) {
       if (mounted) setState(() => playingQari = null);
+    });
+  }
+
+  Future<void> _loadBookmarksAndLastRead() async {
+    final bm = await QuranBookmarkStore.getBookmarks();
+    final lr = await QuranBookmarkStore.getLastRead();
+    if (!mounted) return;
+    setState(() {
+      _bookmarkedIds = bm.map((e) => '${e['surahNumber']}:${e['ayahNumber']}').toSet();
+      _lastRead = lr;
     });
   }
 
@@ -615,6 +1195,7 @@ class _SurahPageState extends State<SurahPage> {
         loading = true;
         error = null;
         playingQari = null;
+        _ayahKeys.clear();
       });
       final r = await http
           .get(Uri.parse('https://equran.id/api/v2/surat/$_currentNumber'))
@@ -631,6 +1212,12 @@ class _SurahPageState extends State<SurahPage> {
         loading = false;
       });
       _syncShellTitle(fetchedName);
+
+      if (_highlightedAyah != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _scrollToAyah(_highlightedAyah!);
+        });
+      }
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -638,6 +1225,19 @@ class _SurahPageState extends State<SurahPage> {
           loading = false;
         });
       }
+    }
+  }
+
+  void _scrollToAyah(int ayahNumber) {
+    final key = _ayahKeys[ayahNumber];
+    final ctx = key?.currentContext;
+    if (ctx != null) {
+      Scrollable.ensureVisible(
+        ctx,
+        duration: const Duration(milliseconds: 350),
+        curve: Curves.easeOutCubic,
+        alignment: 0.12,
+      );
     }
   }
 
@@ -656,6 +1256,7 @@ class _SurahPageState extends State<SurahPage> {
     setState(() {
       _currentNumber = targetNumber;
       _currentName = targetName;
+      _highlightedAyah = null;
     });
     _syncShellTitle(targetName);
     _get();
@@ -679,8 +1280,52 @@ class _SurahPageState extends State<SurahPage> {
     return clean;
   }
 
+  Future<void> _markLastRead(int ayahNumber) async {
+    HapticFeedback.selectionClick();
+    await QuranBookmarkStore.setLastRead(
+      surahNumber: _currentNumber,
+      surahName: _currentName,
+      ayahNumber: ayahNumber,
+    );
+    await _loadBookmarksAndLastRead();
+    widget.onSavedChanged?.call();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Ditandai terakhir dibaca: $_currentName ayat $ayahNumber'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Future<void> _toggleAyahBookmark(Map<String, dynamic> ayah) async {
+    HapticFeedback.selectionClick();
+    final ayahNum = (ayah['nomorAyat'] as num).toInt();
+    final added = await QuranBookmarkStore.toggleBookmark(
+      surahNumber: _currentNumber,
+      surahName: _currentName,
+      ayahNumber: ayahNum,
+      arabText: ayah['teksArab']?.toString() ?? '',
+      translation: ayah['teksIndonesia']?.toString() ?? '',
+    );
+    await _loadBookmarksAndLastRead();
+    widget.onSavedChanged?.call();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          added
+              ? 'Ayat $ayahNum ditambahkan ke bookmark'
+              : 'Ayat $ayahNum dihapus dari bookmark',
+        ),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
   @override
   void dispose() {
+    _scrollController.dispose();
     player.dispose();
     super.dispose();
   }
@@ -707,6 +1352,7 @@ class _SurahPageState extends State<SurahPage> {
     final nextName = _surahName(_currentNumber + 1);
 
     return ListView(
+      controller: _scrollController,
       physics: const BouncingScrollPhysics(),
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
       children: [
@@ -841,55 +1487,145 @@ class _SurahPageState extends State<SurahPage> {
           ),
           const SizedBox(height: 14),
         ],
-        for (final a in data!['ayat'] as List<dynamic>)
-          Container(
-            margin: const EdgeInsets.only(bottom: 12),
-            padding: const EdgeInsets.all(18),
-            decoration: cardDecoration(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: greenSoft,
-                      borderRadius: BorderRadius.circular(10),
+        for (final item in data!['ayat'] as List<dynamic>)
+          Builder(
+            builder: (context) {
+              final a = item as Map<String, dynamic>;
+              final ayahNum = (a['nomorAyat'] as num).toInt();
+              final ayahKey = _ayahKeys.putIfAbsent(ayahNum, () => GlobalKey());
+              final isBookmarked = _bookmarkedIds.contains('$_currentNumber:$ayahNum');
+              final isLastRead = _lastRead != null &&
+                  _lastRead!['surahNumber'] == _currentNumber &&
+                  _lastRead!['ayahNumber'] == ayahNum;
+              final isHighlighted = _highlightedAyah == ayahNum;
+
+              return Container(
+                key: ayahKey,
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: isHighlighted ? const Color(0xFFF3FBF7) : Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                    color: (isLastRead || isHighlighted)
+                        ? green.withOpacity(0.55)
+                        : const Color(0xFFE7EFEA),
+                    width: (isLastRead || isHighlighted) ? 1.5 : 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.035),
+                      blurRadius: 14,
+                      offset: const Offset(0, 5),
                     ),
-                    child: Text(
-                      'Ayat ${a['nomorAyat']}',
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: isLastRead ? green : greenSoft,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Text(
+                            'Ayat $ayahNum',
+                            style: TextStyle(
+                              color: isLastRead ? Colors.white : greenDark,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                        if (isLastRead) ...[
+                          const SizedBox(width: 6),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: greenSoft,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'Terakhir dibaca',
+                              style: TextStyle(
+                                color: greenDark,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ),
+                        ],
+                        const Spacer(),
+                        InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          onTap: () => _markLastRead(ayahNum),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isLastRead
+                                      ? Icons.check_circle_rounded
+                                      : Icons.auto_stories_outlined,
+                                  size: 16,
+                                  color: green,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  isLastRead ? 'Ditandai' : 'Tandai baca',
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: greenDark,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
+                          tooltip: isBookmarked ? 'Hapus bookmark' : 'Simpan bookmark',
+                          onPressed: () => _toggleAyahBookmark(a),
+                          icon: Icon(
+                            isBookmarked ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                            color: isBookmarked ? green : muted,
+                            size: 21,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      a['teksArab']?.toString() ?? '',
+                      textAlign: TextAlign.right,
+                      textDirection: TextDirection.rtl,
+                      style: const TextStyle(fontSize: 28, height: 2.0, color: ink),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      a['teksLatin']?.toString() ?? '',
                       style: const TextStyle(
                         color: greenDark,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 12,
+                        fontStyle: FontStyle.italic,
+                        height: 1.5,
                       ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    Text(
+                      a['teksIndonesia']?.toString() ?? '',
+                      style: const TextStyle(color: muted, height: 1.55),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 14),
-                Text(
-                  a['teksArab']?.toString() ?? '',
-                  textAlign: TextAlign.right,
-                  textDirection: TextDirection.rtl,
-                  style: const TextStyle(fontSize: 28, height: 2.0, color: ink),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  a['teksLatin']?.toString() ?? '',
-                  style: const TextStyle(
-                    color: greenDark,
-                    fontStyle: FontStyle.italic,
-                    height: 1.5,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  a['teksIndonesia']?.toString() ?? '',
-                  style: const TextStyle(color: muted, height: 1.55),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         const SizedBox(height: 6),
         Row(
@@ -1252,12 +1988,13 @@ class MorePage extends StatelessWidget {
         children: [
           _navTile(context, 'Arah kiblat', Icons.explore_rounded, 'Arah Kiblat', const QiblaPage()),
           _navTile(context, 'Tasbih digital', Icons.fingerprint_rounded, 'Tasbih Digital', const TasbihPage()),
+          _navTile(context, 'Ayat tersimpan', Icons.bookmarks_rounded, 'Ayat Tersimpan', const BookmarksPage()),
           _navTile(context, 'Doa harian', Icons.volunteer_activism_rounded, 'Doa Harian', const DuaPage()),
           _navTile(context, 'Hadis pilihan', Icons.auto_stories_rounded, 'Hadis Pilihan', const HadithPage()),
           _navTile(context, 'Kalkulator zakat', Icons.calculate_rounded, 'Kalkulator Zakat Mal', const ZakatPage()),
           _navTile(context, 'Pengingat salat', Icons.notifications_active_rounded, 'Pengingat Salat', const ReminderPage()),
           const SizedBox(height: 14),
-          const InfoCard(icon: Icons.info_outline_rounded, title: 'Tentang Muslimku', text: 'Versi 1.3.0 • Aplikasi pendamping ibadah.'),
+          const InfoCard(icon: Icons.info_outline_rounded, title: 'Tentang Muslimku', text: 'Versi 1.4.0 • Aplikasi pendamping ibadah.'),
         ],
       );
 }
@@ -1434,6 +2171,22 @@ void _push(BuildContext context, String title, Widget page) {
     shell.openSubPage(title, page);
   } else {
     Navigator.push(
+      context,
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => Scaffold(appBar: AppBar(title: Text(title)), body: page),
+        transitionDuration: const Duration(milliseconds: 260),
+        transitionsBuilder: (_, a, __, c) => FadeTransition(opacity: a, child: c),
+      ),
+    );
+  }
+}
+
+Future<void> _pushAsync(BuildContext context, String title, Widget page) async {
+  final shell = context.findAncestorStateOfType<_MainShellState>();
+  if (shell != null) {
+    shell.openSubPage(title, page);
+  } else {
+    await Navigator.push(
       context,
       PageRouteBuilder(
         pageBuilder: (_, __, ___) => Scaffold(appBar: AppBar(title: Text(title)), body: page),
