@@ -30,6 +30,20 @@ Kalender Hijriah dan unduhan konten offline belum disertakan.
 
 Jika proyek dibuka di komputer baru, Android Studio/Flutter akan membuat `android/local.properties` sesuai lokasi Flutter SDK. File ini tidak disertakan karena bersifat lokal.
 
+## Signing APK dan update tanpa uninstall
+
+APK release harus selalu memakai keystore yang sama. Workflow GitHub Actions sekarang membaca empat GitHub Secrets berikut: `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, dan `ANDROID_KEY_PASSWORD`. Buat keystore satu kali, ubah ke Base64, lalu simpan nilainya di **Settings → Secrets and variables → Actions → New repository secret**. Jangan commit file `.jks` atau `android/key.properties`.
+
+Contoh pembuatan keystore:
+
+```bash
+keytool -genkeypair -v -keystore muslimku-release.jks -alias muslimku \
+  -keyalg RSA -keysize 2048 -validity 10000
+base64 -w 0 muslimku-release.jks > muslimku-release.jks.base64
+```
+
+Setelah empat secret disimpan, jalankan workflow **Build Muslimku APK** kembali. APK yang sudah terpasang dari signing lama mungkin tetap perlu di-uninstall satu kali karena tanda tangan APK lama tidak dapat diganti; setelah APK release baru terpasang, semua update berikutnya dapat dipasang langsung tanpa uninstall.
+
 ## Izin Android
 
 Aplikasi meminta izin lokasi saat pengguna membuka jadwal salat atau arah kiblat, serta izin notifikasi dan alarm saat pertama dibuka. Akses internet digunakan untuk mengambil jadwal, daftar surah, ayat, dan audio. Tasbih serta pengaturan azan disimpan di penyimpanan preferensi lokal.

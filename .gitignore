@@ -1,0 +1,13 @@
+# Local Flutter/Android files
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+android/.gradle/
+android/local.properties
+
+# Release signing credentials - never commit these files
+android/key.properties
+android/*.jks
+android/*.keystore

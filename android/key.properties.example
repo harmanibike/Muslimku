@@ -1,0 +1,6 @@
+# Salin menjadi android/key.properties untuk build lokal.
+# Jangan commit android/key.properties atau file .jks ke repository.
+storePassword=GANTI_DENGAN_PASSWORD_KEYSTORE
+keyPassword=GANTI_DENGAN_PASSWORD_KEY
+keyAlias=muslimku
+storeFile=../muslimku-release.jks
