@@ -7,16 +7,20 @@ class AzanNotificationService {
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
-  static const String _channelId = 'muslimku_azan_v1';
+  // v2 penting: suara pada notification channel Android bersifat immutable
+  // setelah channel pertama kali dibuat.
+  static const String _channelId = 'muslimku_azan_v2';
   static const String _channelName = 'Notifikasi Azan';
-  static const String _channelDesc = 'Pengingat waktu salat (Zuhur, Asar, Magrib, Isya)';
-
-  static const String _subuhChannelId = 'muslimku_azan_subuh_v1';
+  static const String _channelDesc =
+      'Pengingat waktu salat Zuhur, Asar, Magrib, dan Isya';
+  static const String _subuhChannelId = 'muslimku_azan_subuh_v2';
   static const String _subuhChannelName = 'Notifikasi Azan Subuh';
-  static const String _subuhChannelDesc = 'Pengingat waktu salat Subuh dengan suara azan Subuh';
+  static const String _subuhChannelDesc =
+      'Pengingat waktu salat Subuh dengan suara azan Subuh';
 
   static const List<String> prayerKeys = ['Subuh', 'Zuhur', 'Asar', 'Magrib', 'Isya'];
-
+  static const int _firstPrayerId = 100;
+  static const int _testNotificationId = 999;
   static bool _initialized = false;
 
   static Future<void> init() async {
@@ -26,12 +30,13 @@ class AzanNotificationService {
 
     const androidInit = AndroidInitializationSettings('@android:drawable/sym_def_app_icon');
     const initSettings = InitializationSettings(android: androidInit);
-
     await _plugin.initialize(
       initSettings,
       onDidReceiveNotificationResponse: (response) async {
         if (response.actionId == 'stop_azan') {
-          await stopAllAzan();
+          // Hanya menghentikan suara/notifikasi yang sedang tampil. Jangan
+          // membatalkan jadwal salat hari-hari berikutnya.
+          await _plugin.cancel(response.id ?? _testNotificationId);
         }
       },
     );
@@ -40,18 +45,16 @@ class AzanNotificationService {
         AndroidFlutterLocalNotificationsPlugin>();
     await androidPlugin?.requestNotificationsPermission();
     await androidPlugin?.requestExactAlarmsPermission();
-
     _initialized = true;
   }
 
   static void _setLocalTimezone() {
     final offsetHours = DateTime.now().timeZoneOffset.inHours;
-    String locationName = 'Asia/Jakarta';
-    if (offsetHours == 8) {
-      locationName = 'Asia/Makassar';
-    } else if (offsetHours == 9) {
-      locationName = 'Asia/Jayapura';
-    }
+    final locationName = switch (offsetHours) {
+      8 => 'Asia/Makassar',
+      9 => 'Asia/Jayapura',
+      _ => 'Asia/Jakarta',
+    };
     try {
       tz.setLocalLocation(tz.getLocation(locationName));
     } catch (_) {
@@ -67,12 +70,15 @@ class AzanNotificationService {
         channelDescription: isSubuh ? _subuhChannelDesc : _channelDesc,
         importance: Importance.max,
         priority: Priority.max,
-        sound: RawResourceAndroidNotificationSound(isSubuh ? 'azan_subuh' : 'azan'),
+        sound: RawResourceAndroidNotificationSound(
+          isSubuh ? 'azan_subuh' : 'azan',
+        ),
         playSound: true,
         enableVibration: true,
         audioAttributesUsage: AudioAttributesUsage.alarm,
-        autoCancel: true,
-        actions: const <AndroidNotificationAction>[
+        autoCancel: false,
+        ongoing: true,
+        actions: const [
           AndroidNotificationAction(
             'stop_azan',
             'Hentikan Azan',
@@ -89,76 +95,99 @@ class AzanNotificationService {
     final prefs = await SharedPreferences.getInstance();
     final enabled = prefs.getBool('azan_enabled') ?? true;
 
-    for (int i = 0; i < prayerKeys.length; i++) {
-      await _plugin.cancel(100 + i);
+    for (var i = 0; i < prayerKeys.length; i++) {
+      await _plugin.cancel(_firstPrayerId + i);
     }
     if (!enabled) return;
 
     final now = tz.TZDateTime.now(tz.local);
-
-    for (int i = 0; i < prayerKeys.length; i++) {
+    for (var i = 0; i < prayerKeys.length; i++) {
       final name = prayerKeys[i];
-      final prayerEnabled = prefs.getBool('azan_$name') ?? true;
-      if (!prayerEnabled) continue;
-
+      if (!(prefs.getBool('azan_$name') ?? true)) continue;
       final hhmm = times[name];
-      if (hhmm == null) continue;
+      if (hhmm == null || !_isValidTime(hhmm)) continue;
       final parts = hhmm.split(':');
-      if (parts.length != 2) continue;
-      final h = int.tryParse(parts[0]);
-      final m = int.tryParse(parts[1]);
-      if (h == null || m == null) continue;
-
+      final h = int.parse(parts[0]);
+      final m = int.parse(parts[1]);
       var scheduled = tz.TZDateTime(tz.local, now.year, now.month, now.day, h, m);
-      if (scheduled.isBefore(now)) {
-        scheduled = scheduled.add(const Duration(days: 1));
-      }
-
+      if (!scheduled.isAfter(now)) scheduled = scheduled.add(const Duration(days: 1));
       final isSubuh = name == 'Subuh';
 
       try {
-        await _plugin.zonedSchedule(
-          100 + i,
-          'Waktu Salat $name',
-          'Telah masuk waktu salat $name ($hhmm). Mari tunaikan salat.',
-          scheduled,
-          _azanDetails(isSubuh: isSubuh),
-          androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.time,
-        );
+        await _schedule(_firstPrayerId + i, name, hhmm, scheduled, isSubuh,
+            AndroidScheduleMode.exactAllowWhileIdle);
       } catch (_) {
-        await _plugin.zonedSchedule(
-          100 + i,
-          'Waktu Salat $name',
-          'Telah masuk waktu salat $name ($hhmm). Mari tunaikan salat.',
-          scheduled,
-          _azanDetails(isSubuh: isSubuh),
-          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
-          matchDateTimeComponents: DateTimeComponents.time,
-        );
+        // Tetap berfungsi pada perangkat yang tidak memberi akses exact alarm.
+        await _schedule(_firstPrayerId + i, name, hhmm, scheduled, isSubuh,
+            AndroidScheduleMode.inexactAllowWhileIdle);
       }
     }
+  }
+
+  static bool _isValidTime(String value) {
+    final parts = value.split(':');
+    if (parts.length != 2) return false;
+    final h = int.tryParse(parts[0]);
+    final m = int.tryParse(parts[1]);
+    return h != null && m != null && h >= 0 && h < 24 && m >= 0 && m < 60;
+  }
+
+  static Future<void> _schedule(
+    int id,
+    String name,
+    String hhmm,
+    tz.TZDateTime scheduled,
+    bool isSubuh,
+    AndroidScheduleMode mode,
+  ) {
+    return _plugin.zonedSchedule(
+      id,
+      'Waktu Salat $name',
+      'Telah masuk waktu salat $name ($hhmm). Mari tunaikan salat.',
+      scheduled,
+      _azanDetails(isSubuh: isSubuh),
+      androidScheduleMode: mode,
+      uiLocalNotificationDateInterpretation:
+          UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.time,
+    );
   }
 
   static Future<void> testAzan({bool isSubuh = false}) async {
     await init();
     await _plugin.show(
-      999,
+      _testNotificationId,
       isSubuh ? 'Tes Notifikasi Azan Subuh' : 'Tes Notifikasi Azan',
-      'Suara azan offline aktif. Tekan "Hentikan Azan" untuk mematikan.',
+      'Suara azan offline aktif. Tekan “Hentikan Azan” untuk mematikan.',
       _azanDetails(isSubuh: isSubuh),
     );
   }
 
+  static Future<void> setEnabled(bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('azan_enabled', enabled);
+    if (!enabled) {
+      await stopAllAzan();
+    }
+  }
+
+  static Future<void> setPrayerEnabled(String prayer, bool enabled) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('azan_$prayer', enabled);
+    if (!enabled) {
+      final index = prayerKeys.indexOf(prayer);
+      if (index >= 0) {
+        await init();
+        await _plugin.cancel(_firstPrayerId + index);
+      }
+    }
+  }
+
   static Future<void> stopAllAzan() async {
     await init();
-    await _plugin.cancel(999);
-    for (int i = 0; i < prayerKeys.length; i++) {
-      await _plugin.cancel(100 + i);
+    await _plugin.cancel(_testNotificationId);
+    for (var i = 0; i < prayerKeys.length; i++) {
+      await _plugin.cancel(_firstPrayerId + i);
     }
   }
 }

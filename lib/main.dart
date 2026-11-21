@@ -11,10 +11,12 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/prayer_times_service.dart';
+import 'services/azan_notification_service.dart';
 import 'screens/sholawat_page.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await AzanNotificationService.init();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
@@ -338,6 +340,7 @@ class _HomePageState extends State<HomePage> {
     try {
       final pt = await AladhanPrayerTimesService.loadForCurrentLocation();
       if (mounted) setState(() => _prayerResult = pt);
+      await AzanNotificationService.scheduleDailyPrayers(pt.times);
     } catch (_) {}
   }
 
@@ -562,6 +565,7 @@ class _PrayerPageState extends State<PrayerPage> {
         result = data;
         loading = false;
       });
+      await AzanNotificationService.scheduleDailyPrayers(data.times);
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -2094,14 +2098,97 @@ class _ZakatPageState extends State<ZakatPage> {
       );
 }
 
-class ReminderPage extends StatelessWidget {
+class ReminderPage extends StatefulWidget {
   const ReminderPage({super.key});
+  @override
+  State<ReminderPage> createState() => _ReminderPageState();
+}
+
+class _ReminderPageState extends State<ReminderPage> {
+  bool enabled = true;
+  final Map<String, bool> prayerEnabled = {
+    for (final name in AzanNotificationService.prayerKeys) name: true,
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    _loadSettings();
+  }
+
+  Future<void> _loadSettings() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted) return;
+    setState(() {
+      enabled = prefs.getBool('azan_enabled') ?? true;
+      for (final name in AzanNotificationService.prayerKeys) {
+        prayerEnabled[name] = prefs.getBool('azan_$name') ?? true;
+      }
+    });
+  }
+
+  Future<void> _setEnabled(bool value) async {
+    setState(() => enabled = value);
+    await AzanNotificationService.setEnabled(value);
+    if (value && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Buka halaman Salat untuk menjadwalkan ulang azan.'),
+      ));
+    }
+  }
+
+  Future<void> _setPrayerEnabled(String name, bool value) async {
+    setState(() => prayerEnabled[name] = value);
+    await AzanNotificationService.setPrayerEnabled(name, value);
+  }
+
   @override
   Widget build(BuildContext context) => ListView(
         physics: const BouncingScrollPhysics(),
         padding: const EdgeInsets.all(20),
-        children: const [
-          InfoCard(icon: Icons.notifications_active_rounded, title: 'Pengaturan notifikasi', text: 'Halaman jadwal salat sudah dapat mengambil waktu otomatis berdasarkan lokasi.'),
+        children: [
+          const InfoCard(
+            icon: Icons.notifications_active_rounded,
+            title: 'Pengaturan notifikasi azan',
+            text: 'Notifikasi dan suara azan dijadwalkan setiap hari dari waktu salat terakhir yang dimuat.',
+          ),
+          const SizedBox(height: 12),
+          Card(
+            color: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            child: Column(children: [
+              SwitchListTile(
+                value: enabled,
+                onChanged: _setEnabled,
+                activeColor: green,
+                title: const Text('Aktifkan azan', style: TextStyle(fontWeight: FontWeight.w800, color: ink)),
+                subtitle: const Text('Berbunyi saat masuk waktu salat.'),
+              ),
+              const Divider(height: 1),
+              for (final name in AzanNotificationService.prayerKeys)
+                SwitchListTile(
+                  value: enabled && (prayerEnabled[name] ?? true),
+                  onChanged: enabled ? (value) => _setPrayerEnabled(name, value) : null,
+                  activeColor: green,
+                  title: Text(name, style: const TextStyle(fontWeight: FontWeight.w700, color: ink)),
+                ),
+            ]),
+          ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: () => AzanNotificationService.testAzan(),
+            icon: const Icon(Icons.volume_up_rounded),
+            label: const Text('Uji suara azan'),
+            style: FilledButton.styleFrom(backgroundColor: green, foregroundColor: Colors.white),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () => AzanNotificationService.testAzan(isSubuh: true),
+            icon: const Icon(Icons.wb_twilight_rounded),
+            label: const Text('Uji suara azan Subuh'),
+            style: OutlinedButton.styleFrom(foregroundColor: green, side: const BorderSide(color: green)),
+          ),
         ],
       );
 }

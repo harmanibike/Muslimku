@@ -11,9 +11,13 @@ Proyek ini melanjutkan desain Muslimku putih-hijau yang dikirim pengguna. Proyek
 - Doa harian ringkas dan hadis pilihan.
 - Kalkulator estimasi zakat mal 2,5% (bukan penetapan hukum zakat).
 
-## Fitur yang belum selesai
+## Notifikasi dan suara azan
 
-Notifikasi azan terjadwal belum diaktifkan. Halaman pengingat menjelaskan status ini; modul penjadwalan notifikasi perlu dikembangkan dan diuji untuk izin notifikasi, exact alarm, mode hemat baterai, dan kebijakan Android versi target. Kalender Hijriah dan unduhan konten offline juga belum disertakan. Jangan menganggap fitur-fitur tersebut sudah aktif.
+Notifikasi azan terjadwal menggunakan waktu salat dari lokasi perangkat dan suara offline di `android/app/src/main/res/raw/`. Aplikasi meminta izin notifikasi serta exact alarm saat pertama dibuka, lalu mendaftarkan jadwal harian setelah jadwal salat berhasil dimuat. Pengaturan per waktu salat dan tombol uji suara tersedia di menu **Pengingat salat**.
+
+Pada sebagian perangkat, optimasi baterai atau mode senyap dapat menunda atau mematikan alarm. Izinkan Muslimku berjalan tanpa pembatasan baterai dan pastikan volume alarm/notifikasi perangkat aktif. Jika lokasi berubah, buka halaman **Waktu Salat** dan lakukan refresh agar jadwal diperbarui.
+
+Kalender Hijriah dan unduhan konten offline belum disertakan.
 
 ## Menjalankan proyek
 
@@ -28,7 +32,7 @@ Jika proyek dibuka di komputer baru, Android Studio/Flutter akan membuat `androi
 
 ## Izin Android
 
-Aplikasi meminta izin lokasi saat pengguna membuka jadwal salat atau arah kiblat. Akses internet digunakan untuk mengambil jadwal, daftar surah, ayat, dan audio. Tasbih disimpan di penyimpanan preferensi lokal.
+Aplikasi meminta izin lokasi saat pengguna membuka jadwal salat atau arah kiblat, serta izin notifikasi dan alarm saat pertama dibuka. Akses internet digunakan untuk mengambil jadwal, daftar surah, ayat, dan audio. Tasbih serta pengaturan azan disimpan di penyimpanan preferensi lokal.
 
 ## Sumber data daring
 
