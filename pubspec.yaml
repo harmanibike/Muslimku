@@ -2,7 +2,7 @@
 name: muslimku
 description: Aplikasi ibadah Muslimku - jadwal salat, Al-Qur'an, kiblat, tasbih, doa dan hadis.
 publish_to: 'none'
-version: 1.3.2+7
+version: 1.3.3+8
 
 environment:
   sdk: '>=3.3.0 <4.0.0'
@@ -29,3 +29,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/data/
+    - assets/audio/

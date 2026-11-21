@@ -2142,6 +2142,21 @@ class _ReminderPageState extends State<ReminderPage> {
     await AzanNotificationService.setPrayerEnabled(name, value);
   }
 
+  Future<void> _testAzan({bool isSubuh = false}) async {
+    try {
+      await AzanNotificationService.testAzan(isSubuh: isSubuh);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Suara azan sedang diputar. Periksa volume media perangkat.'),
+      ));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('Uji suara gagal: $e'),
+      ));
+    }
+  }
+
   @override
   Widget build(BuildContext context) => ListView(
         physics: const BouncingScrollPhysics(),
@@ -2177,14 +2192,14 @@ class _ReminderPageState extends State<ReminderPage> {
           ),
           const SizedBox(height: 14),
           FilledButton.icon(
-            onPressed: () => AzanNotificationService.testAzan(),
+            onPressed: _testAzan,
             icon: const Icon(Icons.volume_up_rounded),
             label: const Text('Uji suara azan'),
             style: FilledButton.styleFrom(backgroundColor: green, foregroundColor: Colors.white),
           ),
           const SizedBox(height: 8),
           OutlinedButton.icon(
-            onPressed: () => AzanNotificationService.testAzan(isSubuh: true),
+            onPressed: () => _testAzan(isSubuh: true),
             icon: const Icon(Icons.wb_twilight_rounded),
             label: const Text('Uji suara azan Subuh'),
             style: OutlinedButton.styleFrom(foregroundColor: green, side: const BorderSide(color: green)),

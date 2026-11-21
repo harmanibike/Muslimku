@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:audioplayers/audioplayers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
@@ -21,6 +22,7 @@ class AzanNotificationService {
   static const List<String> prayerKeys = ['Subuh', 'Zuhur', 'Asar', 'Magrib', 'Isya'];
   static const int _firstPrayerId = 100;
   static const int _testNotificationId = 999;
+  static final AudioPlayer _testPlayer = AudioPlayer();
   static bool _initialized = false;
 
   static Future<void> init() async {
@@ -154,13 +156,23 @@ class AzanNotificationService {
   }
 
   static Future<void> testAzan({bool isSubuh = false}) async {
-    await init();
-    await _plugin.show(
-      _testNotificationId,
-      isSubuh ? 'Tes Notifikasi Azan Subuh' : 'Tes Notifikasi Azan',
-      'Suara azan offline aktif. Tekan “Hentikan Azan” untuk mematikan.',
-      _azanDetails(isSubuh: isSubuh),
-    );
+    // Putar langsung dari aset Flutter agar tombol uji tetap membuktikan
+    // audio bekerja walaupun izin notifikasi perangkat belum diberikan.
+    await _testPlayer.stop();
+    await _testPlayer.play(AssetSource(
+      isSubuh ? 'audio/azan_subuh.mp3' : 'audio/azan.mp3',
+    ));
+    try {
+      await init();
+      await _plugin.show(
+        _testNotificationId,
+        isSubuh ? 'Tes Notifikasi Azan Subuh' : 'Tes Notifikasi Azan',
+        'Suara azan offline sedang diputar.',
+        _azanDetails(isSubuh: isSubuh),
+      );
+    } catch (_) {
+      // Audio langsung tetap menjadi fallback ketika notifikasi diblokir.
+    }
   }
 
   static Future<void> setEnabled(bool enabled) async {
