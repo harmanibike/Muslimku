@@ -1,0 +1,48 @@
+
+name: Generate permanent Android signing key
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate keystore
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p signing-output
+
+          STORE_PASS="$(openssl rand -hex 24)"
+          KEY_PASS="$(openssl rand -hex 24)"
+          KEY_ALIAS="muslimku-release"
+
+          keytool -genkeypair -v \
+            -keystore signing-output/muslimku-release.jks \
+            -storetype JKS \
+            -storepass "$STORE_PASS" \
+            -keypass "$KEY_PASS" \
+            -alias "$KEY_ALIAS" \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Muslimku, OU=Android, O=Muslimku, L=Indonesia, ST=Indonesia, C=ID"
+
+          base64 -w 0 signing-output/muslimku-release.jks \
+            > signing-output/ANDROID_KEYSTORE_BASE64.txt
+
+          {
+            echo "ANDROID_KEYSTORE_PASSWORD=$STORE_PASS"
+            echo "ANDROID_KEY_ALIAS=$KEY_ALIAS"
+            echo "ANDROID_KEY_PASSWORD=$KEY_PASS"
+          } > signing-output/GITHUB_SECRETS.txt
+
+      - name: Upload signing material
+        uses: actions/upload-artifact@v4
+        with:
+          name: muslimku-signing-material
+          path: signing-output/
+          retention-days: 1
+          
