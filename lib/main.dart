@@ -519,6 +519,7 @@ class _HomePageState extends State<HomePage> {
           children: [
             QuickTile('Jadwal salat', Icons.access_time_filled_rounded, const Color(0xFFE6F4EC), green, () => widget.onSelectTab(1)),
             QuickTile('Al-Qur’an', Icons.menu_book_rounded, const Color(0xFFE6F2F8), const Color(0xFF1A6B96), () => widget.onSelectTab(2)),
+            QuickTile('Kitab Kuning', Icons.auto_stories_rounded, const Color(0xFFEFECE1), const Color(0xFF8A6A25), () => _push(context, 'Kitab Kuning Pesantren', const KitabListPage())),
             QuickTile('Murottal', Icons.headphones_rounded, const Color(0xFFF3ECFA), const Color(0xFF6B3FA0), () => widget.onSelectTab(2)),
             QuickTile('Arah kiblat', Icons.explore_rounded, const Color(0xFFFEF3E2), const Color(0xFFC2780A), () => _push(context, 'Arah Kiblat', const QiblaPage())),
             QuickTile('Tasbih', Icons.fingerprint_rounded, const Color(0xFFE8F5F3), const Color(0xFF0F766E), () => _push(context, 'Tasbih Digital', const TasbihPage())),
