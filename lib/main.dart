@@ -2390,7 +2390,16 @@ class _KitabListPageState extends State<KitabListPage> {
               book.namaKitab,
               book.judulBab,
               book.kategori,
-              ...book.isi.expand((item) => [item.nomor, item.arab, item.latin, item.terjemah]),
+              ...book.isi.expand((item) => [
+                    item.nomor,
+                    item.judulBab,
+                    item.arab,
+                    item.latin,
+                    item.terjemah,
+                    item.ringkasan,
+                    ...item.poinPenting,
+                    item.catatan,
+                  ]),
             ].join(' ').toLowerCase();
             return haystack.contains(query);
           }).toList();
@@ -2574,25 +2583,56 @@ class _KitabReaderPageState extends State<KitabReaderPage> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          Text(
-                            item.arab,
-                            textAlign: TextAlign.right,
-                            textDirection: TextDirection.rtl,
-                            style: TextStyle(fontSize: _arabicFontSize, height: 1.85, fontWeight: FontWeight.w600, color: ink),
-                          ),
+                          if (item.judulBab.isNotEmpty)
+                            Text(
+                              item.judulBab,
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800, color: greenDark),
+                            ),
+                          if (item.arab.isNotEmpty) ...[
+                            Text(
+                              item.arab,
+                              textAlign: TextAlign.right,
+                              textDirection: TextDirection.rtl,
+                              style: TextStyle(fontSize: _arabicFontSize, height: 1.85, fontWeight: FontWeight.w600, color: ink),
+                            ),
+                          ],
+                          if (item.ringkasan.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            const Text('Ringkasan', style: TextStyle(fontWeight: FontWeight.w800, color: greenDark)),
+                            const SizedBox(height: 4),
+                            Text(item.ringkasan, style: const TextStyle(fontSize: 14, height: 1.5, color: ink)),
+                          ],
+                          if (item.poinPenting.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            const Text('Poin penting', style: TextStyle(fontWeight: FontWeight.w800, color: greenDark)),
+                            const SizedBox(height: 3),
+                            for (final point in item.poinPenting)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 3),
+                                child: Text('• $point', style: const TextStyle(fontSize: 13.5, height: 1.45, color: muted)),
+                              ),
+                          ],
                           if (_mode == ReaderMode.arLtId) ...[
+                            if (item.latin.isNotEmpty) ...[
                             const SizedBox(height: 8),
                             Text(
                               item.latin,
                               style: const TextStyle(fontStyle: FontStyle.italic, fontSize: 13.5, color: greenDark, height: 1.45),
                             ),
+                            ],
                           ],
                           if (_mode == ReaderMode.arLtId || _mode == ReaderMode.arId) ...[
+                            if (item.terjemah.isNotEmpty) ...[
                             const SizedBox(height: 6),
                             Text(
                               item.terjemah,
                               style: const TextStyle(fontSize: 13.5, height: 1.5, color: muted),
                             ),
+                            ],
+                          ],
+                          if (item.catatan.isNotEmpty) ...[
+                            const SizedBox(height: 10),
+                            Text('Catatan: ${item.catatan}', style: const TextStyle(fontSize: 12, fontStyle: FontStyle.italic, color: muted)),
                           ],
                         ],
                       ),

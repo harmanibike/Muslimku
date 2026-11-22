@@ -1,0 +1,122 @@
+{
+  "format": "muslimku-kitab-ringkasan",
+  "version": 1,
+  "jenisKonten": "ringkasan-bab",
+  "createdAt": "2026-11-22",
+  "catatanHakCipta": "Ringkasan ditulis ulang dengan kalimat sendiri untuk tujuan pembelajaran. File ini bukan salinan teks kitab atau terjemahan resmi.",
+  "catatanPenggunaan": "Ringkasan tidak menggantikan kitab asli, syarah, atau bimbingan ustaz/guru.",
+  "books": [
+    {
+      "id": "safinatun-najah-ringkasan",
+      "namaKitab": "Safinatun Najah",
+      "pengarang": "Salim bin Sumair al-Hadrami",
+      "kategori": "Fiqih",
+      "isi": [
+        {
+          "nomor": "1",
+          "judulBab": "Rukun Islam dan dasar keimanan",
+          "ringkasan": "Bagian awal memperkenalkan pokok-pokok Islam dan keimanan sebagai dasar bagi seorang muslim sebelum mempelajari tata cara ibadah secara lebih rinci.",
+          "poinPenting": [
+            "Islam memiliki kewajiban pokok yang menjadi dasar kehidupan seorang muslim.",
+            "Keimanan menjadi landasan batin bagi pelaksanaan ibadah.",
+            "Pembelajaran fiqih sebaiknya disertai pemahaman dasar akidah."
+          ],
+          "catatan": "Ringkasan pembelajaran; bukan kutipan teks kitab."
+        },
+        {
+          "nomor": "2",
+          "judulBab": "Bersuci dan wudu",
+          "ringkasan": "Bab ini membahas pentingnya bersuci sebelum ibadah tertentu, termasuk unsur utama wudu, urutan pelaksanaannya, serta hal-hal yang perlu diperhatikan agar bersuci dilakukan dengan benar.",
+          "poinPenting": [
+            "Bersuci berkaitan dengan kesiapan seseorang untuk melaksanakan ibadah.",
+            "Wudu memiliki beberapa unsur utama yang perlu dilakukan secara tertib.",
+            "Perbedaan antara kewajiban dan sunnah dalam wudu perlu dipelajari dari guru atau syarah yang terpercaya."
+          ],
+          "catatan": "Rincian hukum mengikuti pembahasan fiqih Syafi'i dan perlu dikaji bersama pengajar."
+        },
+        {
+          "nomor": "3",
+          "judulBab": "Salat",
+          "ringkasan": "Pembahasan salat berfokus pada syarat, rukun, waktu, dan hal-hal yang memengaruhi keabsahan salat. Tujuannya adalah membantu pelajar memahami urutan ibadah dan menjaga ketepatan pelaksanaannya.",
+          "poinPenting": [
+            "Salat memiliki syarat yang harus dipenuhi sebelum pelaksanaan.",
+            "Rukun salat dilakukan secara berurutan sesuai tuntunan mazhab.",
+            "Kesalahan dalam salat memiliki hukum yang berbeda sehingga perlu ditanyakan kepada ahli ilmu."
+          ],
+          "catatan": "Ringkasan umum, bukan fatwa untuk kasus tertentu."
+        }
+      ]
+    },
+    {
+      "id": "talimul-mutaallim-ringkasan",
+      "namaKitab": "Ta'limul Muta'allim",
+      "pengarang": "Burhanuddin az-Zarnuji",
+      "kategori": "Adab & Akhlak",
+      "isi": [
+        {
+          "nomor": "1",
+          "judulBab": "Niat dalam menuntut ilmu",
+          "ringkasan": "Bab ini menekankan bahwa belajar perlu diarahkan kepada tujuan yang baik, seperti mencari keridaan Allah, memperbaiki diri, dan memberi manfaat kepada orang lain.",
+          "poinPenting": [
+            "Niat memengaruhi arah dan nilai dari kegiatan belajar.",
+            "Ilmu sebaiknya digunakan untuk kebaikan, bukan untuk kesombongan.",
+            "Pelajar perlu mengevaluasi niatnya secara berkala."
+          ],
+          "catatan": "Ringkasan ditulis ulang dan bukan terjemahan resmi."
+        },
+        {
+          "nomor": "2",
+          "judulBab": "Memilih ilmu, guru, dan teman belajar",
+          "ringkasan": "Pelajar dianjurkan memilih ilmu yang bermanfaat, belajar dari guru yang berkompeten, serta membangun lingkungan pertemanan yang mendukung kesungguhan dan akhlak baik.",
+          "poinPenting": [
+            "Prioritaskan ilmu yang dibutuhkan untuk memperbaiki ibadah dan kehidupan.",
+            "Guru berperan membimbing pemahaman dan adab belajar.",
+            "Teman yang baik membantu menjaga semangat dan kedisiplinan."
+          ],
+          "catatan": "Penerapan nasihat perlu disesuaikan dengan kondisi pendidikan masa kini."
+        },
+        {
+          "nomor": "3",
+          "judulBab": "Kesungguhan, kesabaran, dan pengulangan",
+          "ringkasan": "Ilmu membutuhkan usaha yang terus-menerus. Pelajar dianjurkan menjaga jadwal, mengulang pelajaran, bersabar menghadapi kesulitan, dan tidak mudah berhenti.",
+          "poinPenting": [
+            "Kemajuan belajar biasanya terbentuk dari kebiasaan kecil yang konsisten.",
+            "Pengulangan membantu menjaga pemahaman dan hafalan.",
+            "Kesulitan belajar dapat diatasi dengan bertanya dan memperbaiki metode."
+          ],
+          "catatan": "Ringkasan pembelajaran, bukan pengganti teks kitab."
+        }
+      ]
+    },
+    {
+      "id": "safinatun-najah-adab-ringkasan",
+      "namaKitab": "Safinatun Najah",
+      "pengarang": "Salim bin Sumair al-Hadrami",
+      "kategori": "Adab Ibadah",
+      "isi": [
+        {
+          "nomor": "1",
+          "judulBab": "Kebersihan lahir dan batin",
+          "ringkasan": "Ibadah tidak hanya menuntut kebersihan tubuh dan tempat, tetapi juga perhatian terhadap niat, ketertiban, dan penghormatan kepada aturan ibadah.",
+          "poinPenting": [
+            "Kebersihan lahir mendukung kesiapan ibadah.",
+            "Niat dan kesadaran batin melengkapi amal lahir.",
+            "Kebiasaan bersih perlu dijaga dalam kehidupan sehari-hari."
+          ],
+          "catatan": "Contoh ringkasan tematik; perlu dicocokkan dengan susunan bab edisi yang digunakan."
+        },
+        {
+          "nomor": "2",
+          "judulBab": "Belajar ibadah secara bertahap",
+          "ringkasan": "Pelajar dianjurkan memulai dari dasar bersuci dan salat, kemudian mempelajari masalah ibadah lain secara bertahap dengan bimbingan guru.",
+          "poinPenting": [
+            "Pelajari dasar sebelum masuk ke masalah yang lebih rumit.",
+            "Catat perbedaan pendapat dengan adab dan sumber yang jelas.",
+            "Jangan mengambil keputusan hukum hanya dari ringkasan singkat."
+          ],
+          "catatan": "Ringkasan ini bersifat edukatif dan bukan penetapan hukum."
+        }
+      ]
+    }
+  ]
+}
