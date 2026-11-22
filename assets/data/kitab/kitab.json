@@ -1,0 +1,46 @@
+{
+  "format": "muslimku-kitab",
+  "version": 1,
+  "updatedAt": "2026-11-22",
+  "books": [
+    {
+      "id": "safinatun-najah",
+      "namaKitab": "Safinatun Najah",
+      "judulBab": "Bab Taharah — Fardu Wudu",
+      "kategori": "Fiqih",
+      "isi": [
+        {"nomor": "Fasal", "arab": "فَصْلٌ: فُرُوْضُ الْوُضُوْءِ سِتَّةٌ", "latin": "Fashlun: furudhul wudhu-i sittatun.", "terjemah": "Fasal: Fardu (rukun) wudu ada enam."},
+        {"nomor": "1", "arab": "اَلْأَوَّلُ: النِّيَّةُ", "latin": "Al-awwalu: an-niyyatu.", "terjemah": "Pertama: Niat."},
+        {"nomor": "2", "arab": "الثَّانِي: غَسْلُ الْوَجْهِ", "latin": "Ats-tsani: ghaslul wajhi.", "terjemah": "Kedua: Membasuh wajah."},
+        {"nomor": "3", "arab": "الثَّالِثُ: غَسْلُ الْيَدَيْنِ مَعَ الْمِرْفَقَيْنِ", "latin": "Ats-tsalitsu: ghaslul yadaini ma'al mirfaqaini.", "terjemah": "Ketiga: Membasuh kedua tangan sampai ke siku."},
+        {"nomor": "4", "arab": "الرَّابِعُ: مَسْحُ شَيْءٍ مِنَ الرَّأْسِ", "latin": "Ar-rabi'u: mashu syai-in minar ra'si.", "terjemah": "Keempat: Mengusap sebagian kepala."},
+        {"nomor": "5", "arab": "الْخَامِسُ: غَسْلُ الرِّجْلَيْنِ مَعَ الْكَعْبَيْنِ", "latin": "Al-khamisu: ghaslur rijlaini ma'al ka'baini.", "terjemah": "Kelima: Membasuh kedua kaki sampai kedua mata kaki."},
+        {"nomor": "6", "arab": "السَّادِسُ: التَّرْتِيْبُ", "latin": "As-sadisu: at-tartibu.", "terjemah": "Keenam: Tertib (berurutan)."}
+      ]
+    },
+    {
+      "id": "safinatun-najah-rukun-islam",
+      "namaKitab": "Safinatun Najah",
+      "judulBab": "Rukun Islam & Rukun Iman",
+      "kategori": "Tauhid & Fiqih",
+      "isi": [
+        {"nomor": "Fasal", "arab": "فَصْلٌ: أَرْكَانُ الْإِسْلَامِ خَمْسَةٌ", "latin": "Fashlun: arkanul islami khamsatun.", "terjemah": "Fasal: Rukun Islam ada lima."},
+        {"nomor": "1", "arab": "شَهَادَةُ أَنْ لَا إِلٰهَ إِلَّا اللّٰهُ وَأَنَّ مُحَمَّدًا رَسُوْلُ اللّٰهِ", "latin": "Syahadatu an la ilaha illallahu wa anna Muhammadan rasulullahi.", "terjemah": "Bersaksi bahwa tiada tuhan selain Allah dan Nabi Muhammad adalah utusan Allah."},
+        {"nomor": "2", "arab": "وَإِقَامُ الصَّلَاةِ", "latin": "Wa iqamush-shalati.", "terjemah": "Mendirikan salat."},
+        {"nomor": "3", "arab": "وَإِيْتَاءُ الزَّكَاةِ", "latin": "Wa ita-uz-zakati.", "terjemah": "Menunaikan zakat."},
+        {"nomor": "4", "arab": "وَصَوْمُ رَمَضَانَ", "latin": "Wa shaumu Ramadhana.", "terjemah": "Berpuasa di bulan Ramadan."},
+        {"nomor": "5", "arab": "وَحِجُّ الْبَيْتِ مَنِ اسْتَطَاعَ إِلَيْهِ سَبِيْلًا", "latin": "Wa hijjul baiti manistatha'a ilaihi sabila.", "terjemah": "Menunaikan ibadah haji ke Baitullah bagi yang mampu menempuh perjalanannya."}
+      ]
+    },
+    {
+      "id": "talimul-mutaallim",
+      "namaKitab": "Ta'limul Muta'allim",
+      "judulBab": "Syarat & Adab Menuntut Ilmu",
+      "kategori": "Adab & Akhlak",
+      "isi": [
+        {"nomor": "1", "arab": "أَلَا لَا تَنَالُ الْعِلْمَ إِلَّا بِسِتَّةٍ", "latin": "Ala la tanalul 'ilma illa bisittatin.", "terjemah": "Ingatlah, engkau tidak akan meraih ilmu kecuali dengan enam syarat."},
+        {"nomor": "2", "arab": "ذَكَاءٍ وَحِرْصٍ وَاصْطِبَارٍ وَبُلْغَةٍ وَإِرْشَادِ أُسْتَاذٍ وَطُوْلِ زَمَانٍ", "latin": "Dzaka-in wa hirshin washthibarin wa bulghatin, wa irsyadi ustadzin wa thuli zamanin.", "terjemah": "Kecerdasan, semangat tinggi, kesabaran, bekal yang cukup, petunjuk guru, dan waktu yang panjang."}
+      ]
+    }
+  ]
+}

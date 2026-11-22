@@ -55,6 +55,32 @@ Aplikasi meminta izin lokasi saat pengguna membuka jadwal salat atau arah kiblat
 
 Ketersediaan API dan kontennya bergantung koneksi serta layanan pihak ketiga. Cocokkan jadwal dengan otoritas agama setempat.
 
+## Data Kitab Kuning dan backup
+
+Data Kitab Kuning disimpan di `assets/data/kitab/kitab.json` dan dimuat secara lazy ketika halaman kitab dibuka. Format ini memisahkan isi kitab dari kode aplikasi sehingga penambahan kitab cukup dilakukan dengan menambah objek pada array `books`.
+
+Di halaman **Kitab Kuning Pesantren**, tombol unggah digunakan untuk mengimpor JSON kitab atau backup Muslimku. Tombol simpan membuat satu file backup JSON yang berisi data kitab, bookmark Al-Qur'an, posisi baca terakhir, dan pengaturan azan. File impor pengguna disimpan di direktori dokumen aplikasi dan dipakai sebagai sumber data offline tanpa mengubah asset bawaan.
+
+Format minimal data kitab:
+
+```json
+{
+  "format": "muslimku-kitab",
+  "version": 1,
+  "books": [
+    {
+      "id": "contoh-id",
+      "namaKitab": "Nama Kitab",
+      "judulBab": "Judul Bab",
+      "kategori": "Fiqih",
+      "isi": [
+        {"nomor": "1", "arab": "...", "latin": "...", "terjemah": "..."}
+      ]
+    }
+  ]
+}
+```
+
 ## Catatan build
 
 Flutter SDK tidak tersedia di lingkungan penyusunan arsip ini, sehingga proyek belum dapat dikompilasi atau diuji di emulator/perangkat pada sesi ini. Periksa hasil `flutter analyze` dan `flutter build apk --release` sebelum distribusi.

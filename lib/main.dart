@@ -12,6 +12,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'services/prayer_times_service.dart';
 import 'services/azan_notification_service.dart';
+import 'data/kitab_data.dart';
+import 'services/kitab_data_service.dart';
 import 'screens/sholawat_page.dart';
 
 void main() {
@@ -2227,148 +2229,6 @@ class _ReminderPageState extends State<ReminderPage> {
 // ============================================================================
 // FITUR KITAB KUNING PESANTREN (ARAB + LATIN INDONESIA + TERJEMAHAN)
 // ============================================================================
-class KitabFasal {
-  final String nomor;
-  final String arab;
-  final String latin;
-  final String terjemah;
-
-  const KitabFasal({
-    required this.nomor,
-    required this.arab,
-    required this.latin,
-    required this.terjemah,
-  });
-}
-
-class KitabBab {
-  final String namaKitab;
-  final String judulBab;
-  final String kategori;
-  final List<KitabFasal> isi;
-
-  const KitabBab({
-    required this.namaKitab,
-    required this.judulBab,
-    required this.kategori,
-    required this.isi,
-  });
-}
-
-const List<KitabBab> daftarKitabPesantren = [
-  KitabBab(
-    namaKitab: "Safinatun Najah",
-    judulBab: "Bab Taharah — Fardu Wudu",
-    kategori: "Fiqih",
-    isi: [
-      KitabFasal(
-        nomor: "Fasal",
-        arab: "فَصْلٌ: فُرُوْضُ الْوُضُوْءِ سِتَّةٌ",
-        latin: "Fashlun: furudhul wudhu-i sittatun.",
-        terjemah: "Fasal: Fardu (rukun) wudu ada enam.",
-      ),
-      KitabFasal(
-        nomor: "1",
-        arab: "اَلْأَوَّلُ: النِّيَّةُ",
-        latin: "Al-awwalu: an-niyyatu.",
-        terjemah: "Pertama: Niat.",
-      ),
-      KitabFasal(
-        nomor: "2",
-        arab: "الثَّانِي: غَسْلُ الْوَجْهِ",
-        latin: "Ats-tsani: ghaslul wajhi.",
-        terjemah: "Kedua: Membasuh wajah.",
-      ),
-      KitabFasal(
-        nomor: "3",
-        arab: "الثَّالِثُ: غَسْلُ الْيَدَيْنِ مَعَ الْمِرْفَقَيْنِ",
-        latin: "Ats-tsalitsu: ghaslul yadaini ma'al mirfaqaini.",
-        terjemah: "Ketiga: Membasuh kedua tangan sampai ke siku.",
-      ),
-      KitabFasal(
-        nomor: "4",
-        arab: "الرَّابِعُ: مَسْحُ شَيْءٍ مِنَ الرَّأْسِ",
-        latin: "Ar-rabi'u: mashu syai-in minar ra'si.",
-        terjemah: "Keempat: Mengusap sebagian kepala.",
-      ),
-      KitabFasal(
-        nomor: "5",
-        arab: "الْخَامِسُ: غَسْلُ الرِّجْلَيْنِ مَعَ الْكَعْبَيْنِ",
-        latin: "Al-khamisu: ghaslur rijlaini ma'al ka'baini.",
-        terjemah: "Kelima: Membasuh kedua kaki sampai kedua mata kaki.",
-      ),
-      KitabFasal(
-        nomor: "6",
-        arab: "السَّادِسُ: التَّرْتِيْبُ",
-        latin: "As-sadisu: at-tartibu.",
-        terjemah: "Keenam: Tertib (berurutan).",
-      ),
-    ],
-  ),
-  KitabBab(
-    namaKitab: "Safinatun Najah",
-    judulBab: "Rukun Islam & Rukun Iman",
-    kategori: "Tauhid & Fiqih",
-    isi: [
-      KitabFasal(
-        nomor: "Fasal",
-        arab: "فَصْلٌ: أَرْكَانُ الْإِسْلَامِ خَمْسَةٌ",
-        latin: "Fashlun: arkanul islami khamsatun.",
-        terjemah: "Fasal: Rukun Islam ada lima.",
-      ),
-      KitabFasal(
-        nomor: "1",
-        arab: "شَهَادَةُ أَنْ لَا إِلٰهَ إِلَّا اللّٰهُ وَأَنَّ مُحَمَّدًا رَسُوْلُ اللّٰهِ",
-        latin: "Syahadatu an la ilaha illallahu wa anna Muhammadan rasulullahi.",
-        terjemah: "Bersaksi bahwa tiada tuhan selain Allah dan Nabi Muhammad adalah utusan Allah.",
-      ),
-      KitabFasal(
-        nomor: "2",
-        arab: "وَإِقَامُ الصَّلَاةِ",
-        latin: "Wa iqamush-shalati.",
-        terjemah: "Mendirikan salat.",
-      ),
-      KitabFasal(
-        nomor: "3",
-        arab: "وَإِيْتَاءُ الزَّكَاةِ",
-        latin: "Wa ita-uz-zakati.",
-        terjemah: "Menunaikan zakat.",
-      ),
-      KitabFasal(
-        nomor: "4",
-        arab: "وَصَوْمُ رَمَضَانَ",
-        latin: "Wa shaumu Ramadhana.",
-        terjemah: "Berpuasa di bulan Ramadan.",
-      ),
-      KitabFasal(
-        nomor: "5",
-        arab: "وَحِجُّ الْبَيْتِ مَنِ اسْتَطَاعَ إِلَيْهِ سَبِيْلًا",
-        latin: "Wa hijjul baiti manistatha'a ilaihi sabila.",
-        terjemah: "Menunaikan ibadah haji ke Baitullah bagi yang mampu menempuh perjalanannya.",
-      ),
-    ],
-  ),
-  KitabBab(
-    namaKitab: "Ta'limul Muta'allim",
-    judulBab: "Syarat & Adab Menuntut Ilmu",
-    kategori: "Adab & Akhlak",
-    isi: [
-      KitabFasal(
-        nomor: "1",
-        arab: "أَلَا لَا تَنَالُ الْعِلْمَ إِلَّا بِسِتَّةٍ",
-        latin: "Ala la tanalul 'ilma illa bisittatin.",
-        terjemah: "Ingatlah, engkau tidak akan meraih ilmu kecuali dengan enam syarat.",
-      ),
-      KitabFasal(
-        nomor: "2",
-        arab: "ذَكَاءٍ وَحِرْصٍ وَاصْطِبَارٍ وَبُلْغَةٍ وَإِرْشَادِ أُسْتَاذٍ وَطُوْلِ زَمَانٍ",
-        latin: "Dzaka-in wa hirshin washthibarin wa bulghatin, wa irsyadi ustadzin wa thuli zamanin.",
-        terjemah: "Kecerdasan, semangat tinggi, kesabaran, bekal yang cukup, petunjuk guru, dan waktu yang panjang.",
-      ),
-    ],
-  ),
-];
-
 class KitabListPage extends StatefulWidget {
   const KitabListPage({super.key});
 
@@ -2378,16 +2238,91 @@ class KitabListPage extends StatefulWidget {
 
 class _KitabListPageState extends State<KitabListPage> {
   String _selectedCategory = 'Semua';
+  List<KitabBab> _books = const [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBooks();
+  }
+
+  Future<void> _loadBooks() async {
+    try {
+      final books = await KitabDataService.load();
+      if (!mounted) return;
+      setState(() {
+        _books = books;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.toString().replaceFirst('Exception: ', '');
+        _loading = false;
+      });
+    }
+  }
+
+  Future<void> _importBooks() async {
+    try {
+      final count = await KitabDataService.importFromPicker();
+      if (count == 0 || !mounted) return;
+      final books = await KitabDataService.load();
+      setState(() => _books = books);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$count bab kitab berhasil diimpor.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Import gagal: $e')),
+      );
+    }
+  }
+
+  Future<void> _exportBackup() async {
+    try {
+      final path = await KitabDataService.exportBackup(books: _books);
+      if (!mounted || path == null) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Backup tersimpan: $path')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Backup gagal: $e')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final categories = ['Semua', 'Fiqih', 'Tauhid & Fiqih', 'Adab & Akhlak'];
+    if (_loading) return const Center(child: CircularProgressIndicator(color: green));
+    if (_error != null) {
+      return Center(child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Text('Data kitab gagal dimuat:\n$_error', textAlign: TextAlign.center),
+      ));
+    }
+    final categories = ['Semua', ..._books.map((k) => k.kategori).toSet()];
     final filtered = _selectedCategory == 'Semua'
-        ? daftarKitabPesantren
-        : daftarKitabPesantren.where((k) => k.kategori == _selectedCategory).toList();
+        ? _books
+        : _books.where((k) => k.kategori == _selectedCategory).toList();
 
     return Column(
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
+          child: Row(children: [
+            Expanded(
+              child: Text('${_books.length} bab tersedia', style: const TextStyle(color: muted, fontSize: 12)),
+            ),
+            IconButton(tooltip: 'Import JSON kitab', onPressed: _importBooks, icon: const Icon(Icons.file_upload_outlined, color: green)),
+            IconButton(tooltip: 'Backup JSON', onPressed: _exportBackup, icon: const Icon(Icons.save_alt_rounded, color: green)),
+          ]),
+        ),
         SizedBox(
           height: 52,
           child: ListView.separated(
@@ -2443,7 +2378,7 @@ class _KitabListPageState extends State<KitabListPage> {
                     ),
                   ),
                   trailing: const Icon(Icons.chevron_right_rounded, color: muted),
-                  onTap: () => _push(context, bab.namaKitab, KitabReaderPage(bab: bab)),
+                  onTap: () => _push(context, bab.namaKitab, KitabReaderPage(bab: bab, allBooks: _books)),
                 ),
               );
             },
@@ -2458,7 +2393,8 @@ enum ReaderMode { arLtId, arId, arOnly }
 
 class KitabReaderPage extends StatefulWidget {
   final KitabBab bab;
-  const KitabReaderPage({super.key, required this.bab});
+  final List<KitabBab> allBooks;
+  const KitabReaderPage({super.key, required this.bab, required this.allBooks});
 
   @override
   State<KitabReaderPage> createState() => _KitabReaderPageState();
@@ -2577,7 +2513,7 @@ class _KitabReaderPageState extends State<KitabReaderPage> {
                       child: DropdownButton<KitabBab>(
                         isExpanded: true,
                         value: _currentBab,
-                        items: daftarKitabPesantren.map((bab) {
+                        items: widget.allBooks.map((bab) {
                           return DropdownMenuItem<KitabBab>(
                             value: bab,
                             child: Text(
