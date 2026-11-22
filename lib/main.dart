@@ -2013,9 +2013,105 @@ class MorePage extends StatelessWidget {
           _navTile(context, 'Kalkulator zakat', Icons.calculate_rounded, 'Kalkulator Zakat Mal', const ZakatPage()),
           _navTile(context, 'Pengingat salat', Icons.notifications_active_rounded, 'Pengingat Salat', const ReminderPage()),
           _navTile(context, 'Sholawat', Icons.favorite_rounded, 'Sholawat', const SholawatPage(),),
+          _navTile(context, 'Pengaturan', Icons.settings_rounded, 'Pengaturan', const SettingsPage()),
           const SizedBox(height: 14),
           const InfoCard(icon: Icons.info_outline_rounded, title: 'Tentang Muslimku', text: 'Versi 1.4.0 • Aplikasi pendamping ibadah.'),
           
+        ],
+      );
+}
+
+class SettingsPage extends StatefulWidget {
+  const SettingsPage({super.key});
+
+  @override
+  State<SettingsPage> createState() => _SettingsPageState();
+}
+
+class _SettingsPageState extends State<SettingsPage> {
+  List<KitabBab> _books = const [];
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadBooks();
+  }
+
+  Future<void> _loadBooks() async {
+    try {
+      final books = await KitabDataService.load();
+      if (mounted) setState(() { _books = books; _loading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _importBooks() async {
+    try {
+      final count = await KitabDataService.importFromPicker();
+      if (count == 0 || !mounted) return;
+      final books = await KitabDataService.load();
+      setState(() => _books = books);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$count bab kitab berhasil diimpor.')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Import gagal: $e')),
+      );
+    }
+  }
+
+  Future<void> _exportBackup() async {
+    try {
+      final path = await KitabDataService.exportBackup(books: _books);
+      if (!mounted || path == null) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Backup tersimpan: $path')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Backup gagal: $e')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ListView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(18, 8, 18, 28),
+        children: [
+          const InfoCard(
+            icon: Icons.settings_rounded,
+            title: 'Pengaturan Muslimku',
+            text: 'Kelola cadangan data dan kitab yang Anda impor. Data bawaan aplikasi tetap aman.',
+          ),
+          const SizedBox(height: 14),
+          Card(
+            elevation: 0,
+            color: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: const Icon(Icons.file_upload_outlined, color: green),
+                  title: const Text('Import kitab / backup', style: TextStyle(fontWeight: FontWeight.w800, color: ink)),
+                  subtitle: const Text('Pilih file JSON dari perangkat'),
+                  onTap: _importBooks,
+                ),
+                const Divider(height: 1),
+                ListTile(
+                  leading: const Icon(Icons.save_alt_rounded, color: green),
+                  title: const Text('Export backup Muslimku', style: TextStyle(fontWeight: FontWeight.w800, color: ink)),
+                  subtitle: Text(_loading ? 'Menyiapkan data...' : '${_books.length} bab kitab akan dicadangkan'),
+                  onTap: _loading ? null : _exportBackup,
+                ),
+              ],
+            ),
+          ),
         ],
       );
 }
@@ -2238,9 +2334,17 @@ class KitabListPage extends StatefulWidget {
 
 class _KitabListPageState extends State<KitabListPage> {
   String _selectedCategory = 'Semua';
+  String _query = '';
+  final _searchController = TextEditingController();
   List<KitabBab> _books = const [];
   bool _loading = true;
   String? _error;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -2265,38 +2369,6 @@ class _KitabListPageState extends State<KitabListPage> {
     }
   }
 
-  Future<void> _importBooks() async {
-    try {
-      final count = await KitabDataService.importFromPicker();
-      if (count == 0 || !mounted) return;
-      final books = await KitabDataService.load();
-      setState(() => _books = books);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$count bab kitab berhasil diimpor.')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Import gagal: $e')),
-      );
-    }
-  }
-
-  Future<void> _exportBackup() async {
-    try {
-      final path = await KitabDataService.exportBackup(books: _books);
-      if (!mounted || path == null) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Backup tersimpan: $path')),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Backup gagal: $e')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_loading) return const Center(child: CircularProgressIndicator(color: green));
@@ -2307,21 +2379,54 @@ class _KitabListPageState extends State<KitabListPage> {
       ));
     }
     final categories = ['Semua', ..._books.map((k) => k.kategori).toSet()];
-    final filtered = _selectedCategory == 'Semua'
+    final categoryFiltered = _selectedCategory == 'Semua'
         ? _books
         : _books.where((k) => k.kategori == _selectedCategory).toList();
+    final query = _query.trim().toLowerCase();
+    final filtered = query.isEmpty
+        ? categoryFiltered
+        : categoryFiltered.where((book) {
+            final haystack = [
+              book.namaKitab,
+              book.judulBab,
+              book.kategori,
+              ...book.isi.expand((item) => [item.nomor, item.arab, item.latin, item.terjemah]),
+            ].join(' ').toLowerCase();
+            return haystack.contains(query);
+          }).toList();
 
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(18, 10, 18, 0),
-          child: Row(children: [
-            Expanded(
-              child: Text('${_books.length} bab tersedia', style: const TextStyle(color: muted, fontSize: 12)),
+          padding: const EdgeInsets.fromLTRB(18, 10, 18, 6),
+          child: TextField(
+            controller: _searchController,
+            onChanged: (value) => setState(() => _query = value),
+            decoration: InputDecoration(
+              hintText: 'Cari kitab, bab, Arab, latin, atau terjemahan',
+              prefixIcon: const Icon(Icons.search_rounded, color: green),
+              suffixIcon: _query.isEmpty
+                  ? null
+                  : IconButton(
+                      tooltip: 'Hapus pencarian',
+                      onPressed: () {
+                        _searchController.clear();
+                        setState(() => _query = '');
+                      },
+                      icon: const Icon(Icons.clear_rounded),
+                    ),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
             ),
-            IconButton(tooltip: 'Import JSON kitab', onPressed: _importBooks, icon: const Icon(Icons.file_upload_outlined, color: green)),
-            IconButton(tooltip: 'Backup JSON', onPressed: _exportBackup, icon: const Icon(Icons.save_alt_rounded, color: green)),
-          ]),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: Text('${filtered.length} dari ${_books.length} bab tersedia', style: const TextStyle(color: muted, fontSize: 12)),
+          ),
         ),
         SizedBox(
           height: 52,
