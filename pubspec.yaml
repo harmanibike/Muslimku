@@ -31,4 +31,5 @@ flutter:
   uses-material-design: true
   assets:
     - assets/data/
+    - assets/data/kitab/kitab.json
     - assets/audio/
