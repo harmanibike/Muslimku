@@ -40,9 +40,6 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-muslimku-
 
-      - name: Complete Android platform scaffolding
-        run: flutter create --platforms=android --project-name muslimku .
-
       - name: Install dependencies
         run: flutter pub get
 
