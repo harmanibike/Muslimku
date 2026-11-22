@@ -2415,6 +2415,24 @@ class _KitabListPageState extends State<KitabListPage> {
   bool _loading = true;
   String? _error;
 
+  List<KitabBab> _sortBooks(Iterable<KitabBab> source) {
+    final indexed = source.toList().asMap().entries.toList();
+    int chapterNumber(String title) {
+      final match = RegExp(r'\b(?:bab|fasal)?\s*(\d+)', caseSensitive: false).firstMatch(title);
+      return int.tryParse(match?.group(1) ?? '') ?? 1 << 30;
+    }
+
+    indexed.sort((a, b) {
+      final bookCompare = a.value.namaKitab.toLowerCase().compareTo(b.value.namaKitab.toLowerCase());
+      if (bookCompare != 0) return bookCompare;
+      final chapterCompare = chapterNumber(a.value.judulBab).compareTo(chapterNumber(b.value.judulBab));
+      if (chapterCompare != 0) return chapterCompare;
+      final titleCompare = a.value.judulBab.toLowerCase().compareTo(b.value.judulBab.toLowerCase());
+      return titleCompare != 0 ? titleCompare : a.key.compareTo(b.key);
+    });
+    return indexed.map((entry) => entry.value).toList(growable: false);
+  }
+
   @override
   void dispose() {
     _searchController.dispose();
@@ -2478,6 +2496,7 @@ class _KitabListPageState extends State<KitabListPage> {
             ].join(' ').toLowerCase();
             return haystack.contains(query);
           }).toList();
+    final orderedBooks = _sortBooks(filtered);
 
     return Column(
       children: [
@@ -2509,7 +2528,7 @@ class _KitabListPageState extends State<KitabListPage> {
           padding: const EdgeInsets.symmetric(horizontal: 18),
           child: Align(
             alignment: Alignment.centerLeft,
-            child: Text('${filtered.length} dari ${_books.length} bab tersedia', style: const TextStyle(color: muted, fontSize: 12)),
+            child: Text('${orderedBooks.length} dari ${_books.length} bab tersedia', style: const TextStyle(color: muted, fontSize: 12)),
           ),
         ),
         SizedBox(
@@ -2541,9 +2560,9 @@ class _KitabListPageState extends State<KitabListPage> {
           child: ListView.builder(
             physics: const BouncingScrollPhysics(),
             padding: const EdgeInsets.fromLTRB(18, 6, 18, 28),
-            itemCount: filtered.length,
+            itemCount: orderedBooks.length,
             itemBuilder: (context, index) {
-              final bab = filtered[index];
+              final bab = orderedBooks[index];
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 decoration: cardDecoration(),
