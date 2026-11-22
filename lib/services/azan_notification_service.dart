@@ -38,6 +38,7 @@ class AzanNotificationService {
         if (response.actionId == 'stop_azan') {
           // Hanya menghentikan suara/notifikasi yang sedang tampil. Jangan
           // membatalkan jadwal salat hari-hari berikutnya.
+          await _testPlayer.stop();
           await _plugin.cancel(response.id ?? _testNotificationId);
         }
       },
@@ -195,8 +196,14 @@ class AzanNotificationService {
     }
   }
 
+  static Future<void> stopTestAzan() async {
+    await _testPlayer.stop();
+    if (_initialized) await _plugin.cancel(_testNotificationId);
+  }
+
   static Future<void> stopAllAzan() async {
     await init();
+    await _testPlayer.stop();
     await _plugin.cancel(_testNotificationId);
     for (var i = 0; i < prayerKeys.length; i++) {
       await _plugin.cancel(_firstPrayerId + i);

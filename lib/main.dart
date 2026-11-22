@@ -14,9 +14,8 @@ import 'services/prayer_times_service.dart';
 import 'services/azan_notification_service.dart';
 import 'screens/sholawat_page.dart';
 
-Future<void> main() async {
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await AzanNotificationService.init();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
@@ -63,6 +62,16 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int index = 0;
   final List<(String, Widget)> subPages = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Activity Android sudah terpasang setelah frame pertama. Meminta izin
+    // sebelum titik ini dapat membuat POST_NOTIFICATIONS tidak muncul.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(AzanNotificationService.init());
+    });
+  }
 
   void _selectTab(int newIndex) {
     if (index != newIndex || subPages.isNotEmpty) {
@@ -2203,6 +2212,13 @@ class _ReminderPageState extends State<ReminderPage> {
             icon: const Icon(Icons.wb_twilight_rounded),
             label: const Text('Uji suara azan Subuh'),
             style: OutlinedButton.styleFrom(foregroundColor: green, side: const BorderSide(color: green)),
+          ),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: AzanNotificationService.stopTestAzan,
+            icon: const Icon(Icons.stop_circle_outlined),
+            label: const Text('Hentikan uji suara'),
+            style: TextButton.styleFrom(foregroundColor: Colors.red.shade700),
           ),
         ],
       );
