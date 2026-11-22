@@ -157,23 +157,17 @@ class AzanNotificationService {
   }
 
   static Future<void> testAzan({bool isSubuh = false}) async {
-    // Putar langsung dari aset Flutter agar tombol uji tetap membuktikan
-    // audio bekerja walaupun izin notifikasi perangkat belum diberikan.
-    await _testPlayer.stop();
-    await _testPlayer.play(AssetSource(
-      isSubuh ? 'audio/azan_subuh.mp3' : 'audio/azan.mp3',
-    ));
-    try {
-      await init();
-      await _plugin.show(
-        _testNotificationId,
-        isSubuh ? 'Tes Notifikasi Azan Subuh' : 'Tes Notifikasi Azan',
-        'Suara azan offline sedang diputar.',
-        _azanDetails(isSubuh: isSubuh),
-      );
-    } catch (_) {
-      // Audio langsung tetap menjadi fallback ketika notifikasi diblokir.
-    }
+  await init();
+
+  await _testPlayer.stop();
+  await _plugin.cancel(_testNotificationId);
+
+  await _plugin.show(
+    _testNotificationId,
+    isSubuh ? 'Tes Notifikasi Azan Subuh' : 'Tes Notifikasi Azan',
+    'Jika suara terdengar, kanal notifikasi azan berfungsi.',
+    _azanDetails(isSubuh: isSubuh),
+  );
   }
 
   static Future<void> setEnabled(bool enabled) async {
