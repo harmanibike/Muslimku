@@ -2421,11 +2421,12 @@ class _KitabListPageState extends State<KitabListPage> {
       final match = RegExp(r'\b(?:bab|fasal)?\s*(\d+)', caseSensitive: false).firstMatch(title);
       return int.tryParse(match?.group(1) ?? '') ?? 1 << 30;
     }
+    int sectionOrder(KitabBab book) => book.urutan ?? chapterNumber(book.judulBab);
 
     indexed.sort((a, b) {
       final bookCompare = a.value.namaKitab.toLowerCase().compareTo(b.value.namaKitab.toLowerCase());
       if (bookCompare != 0) return bookCompare;
-      final chapterCompare = chapterNumber(a.value.judulBab).compareTo(chapterNumber(b.value.judulBab));
+      final chapterCompare = sectionOrder(a.value).compareTo(sectionOrder(b.value));
       if (chapterCompare != 0) return chapterCompare;
       final titleCompare = a.value.judulBab.toLowerCase().compareTo(b.value.judulBab.toLowerCase());
       return titleCompare != 0 ? titleCompare : a.key.compareTo(b.key);
@@ -2485,6 +2486,8 @@ class _KitabListPageState extends State<KitabListPage> {
               book.kategori,
               ...book.isi.expand((item) => [
                     item.nomor,
+                    item.jenis,
+                    item.urutan?.toString() ?? '',
                     item.judulBab,
                     item.arab,
                     item.latin,
@@ -2563,6 +2566,9 @@ class _KitabListPageState extends State<KitabListPage> {
             itemCount: orderedBooks.length,
             itemBuilder: (context, index) {
               final bab = orderedBooks[index];
+              final sectionPrefix = bab.urutan == null
+                  ? ''
+                  : '${bab.jenis == 'fasal' ? 'Fasal' : 'Bab'} ${bab.urutan} • ';
               return Container(
                 margin: const EdgeInsets.only(bottom: 10),
                 decoration: cardDecoration(),
@@ -2581,7 +2587,7 @@ class _KitabListPageState extends State<KitabListPage> {
                   subtitle: Padding(
                     padding: const EdgeInsets.only(top: 3),
                     child: Text(
-                      '${bab.judulBab} • ${bab.isi.length} poin',
+                      '$sectionPrefix${bab.judulBab} • ${bab.isi.length} poin',
                       style: const TextStyle(color: muted, fontSize: 12),
                     ),
                   ),

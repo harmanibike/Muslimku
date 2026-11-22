@@ -7,6 +7,8 @@ class KitabFasal {
   final String ringkasan;
   final List<String> poinPenting;
   final String catatan;
+  final String jenis;
+  final int? urutan;
 
   const KitabFasal({
     required this.nomor,
@@ -17,6 +19,8 @@ class KitabFasal {
     this.ringkasan = '',
     this.poinPenting = const [],
     this.catatan = '',
+    this.jenis = 'fasal',
+    this.urutan,
   });
 
   factory KitabFasal.fromJson(Map<String, dynamic> json) {
@@ -30,6 +34,8 @@ class KitabFasal {
       ringkasan: json['ringkasan']?.toString() ?? '',
       poinPenting: points is List ? points.map((item) => item.toString()).toList(growable: false) : const [],
       catatan: json['catatan']?.toString() ?? '',
+      jenis: json['jenis']?.toString() ?? (json['nomor']?.toString().toLowerCase() == 'fasal' ? 'fasal' : 'poin'),
+      urutan: int.tryParse(json['urutan']?.toString() ?? json['nomor']?.toString() ?? ''),
     );
   }
 
@@ -42,6 +48,8 @@ class KitabFasal {
         if (ringkasan.isNotEmpty) 'ringkasan': ringkasan,
         if (poinPenting.isNotEmpty) 'poinPenting': poinPenting,
         if (catatan.isNotEmpty) 'catatan': catatan,
+        'jenis': jenis,
+        if (urutan != null) 'urutan': urutan,
       };
 }
 
@@ -51,6 +59,8 @@ class KitabBab {
   final String judulBab;
   final String kategori;
   final List<KitabFasal> isi;
+  final String jenis;
+  final int? urutan;
 
   const KitabBab({
     required this.id,
@@ -58,6 +68,8 @@ class KitabBab {
     required this.judulBab,
     required this.kategori,
     required this.isi,
+    this.jenis = 'bab',
+    this.urutan,
   });
 
   factory KitabBab.fromJson(Map<String, dynamic> json) {
@@ -75,6 +87,8 @@ class KitabBab {
       judulBab: title,
       kategori: json['kategori']?.toString() ?? 'Lainnya',
       isi: rawIsi,
+      jenis: json['jenis']?.toString() ?? 'bab',
+      urutan: int.tryParse(json['urutan']?.toString() ?? ''),
     );
   }
 
@@ -83,6 +97,8 @@ class KitabBab {
         'namaKitab': namaKitab,
         'judulBab': judulBab,
         'kategori': kategori,
+        'jenis': jenis,
+        if (urutan != null) 'urutan': urutan,
         'isi': isi.map((item) => item.toJson()).toList(),
       };
 }
