@@ -59,7 +59,7 @@ class KitabDataService {
       'version': root['version'] ?? 1,
       'updatedAt': DateTime.now().toIso8601String(),
       'books': books.map((book) => book.toJson()).toList(),
-    });
+    }));
     await temp.rename(target.path);
     _cache = books;
     await restoreUserData(decoded);
