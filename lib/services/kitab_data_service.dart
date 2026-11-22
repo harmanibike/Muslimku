@@ -43,6 +43,14 @@ class KitabDataService {
     return file.existsSync() ? file : null;
   }
 
+  static Future<bool> hasImportedKitab() async => (await _importedFile()) != null;
+
+  static Future<void> deleteImportedKitab() async {
+    final file = await _importedFile();
+    if (file != null) await file.delete();
+    _cache = null;
+  }
+
   static Future<int> importJsonBytes(Uint8List bytes) async {
     final decoded = jsonDecode(utf8.decode(bytes));
     final books = _parseBooks(decoded is Map && decoded['kitab'] is Map

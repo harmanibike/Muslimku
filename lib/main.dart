@@ -2031,6 +2031,7 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   List<KitabBab> _books = const [];
   bool _loading = true;
+  bool _hasImportedKitab = false;
 
   @override
   void initState() {
@@ -2041,10 +2042,68 @@ class _SettingsPageState extends State<SettingsPage> {
   Future<void> _loadBooks() async {
     try {
       final books = await KitabDataService.load();
-      if (mounted) setState(() { _books = books; _loading = false; });
+      final hasImported = await KitabDataService.hasImportedKitab();
+      if (mounted) setState(() {
+        _books = books;
+        _hasImportedKitab = hasImported;
+        _loading = false;
+      });
     } catch (_) {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _deleteImportedKitab() async {
+    final first = TextEditingController();
+    final second = TextEditingController();
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Hapus kitab impor?'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text('Data kitab impor akan dihapus dari aplikasi dan kitab bawaan akan digunakan kembali.'),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: first,
+                  autofocus: true,
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: const InputDecoration(labelText: 'Ketik: hapus'),
+                ),
+                const SizedBox(height: 8),
+                TextField(
+                  controller: second,
+                  onChanged: (_) => setDialogState(() {}),
+                  decoration: const InputDecoration(labelText: 'Ketik: yakin'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Batal')),
+            FilledButton(
+              style: FilledButton.styleFrom(backgroundColor: Colors.red.shade700),
+              onPressed: first.text.trim().toLowerCase() == 'hapus' && second.text.trim().toLowerCase() == 'yakin'
+                  ? () => Navigator.pop(dialogContext, true)
+                  : null,
+              child: const Text('Hapus sekarang'),
+            ),
+          ],
+        ),
+      ),
+    );
+    first.dispose();
+    second.dispose();
+    if (confirmed != true || !mounted) return;
+    await KitabDataService.deleteImportedKitab();
+    setState(() => _loading = true);
+    await _loadBooks();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Kitab impor dihapus. Data bawaan dipulihkan.')));
   }
 
   Future<void> _importBooks() async {
@@ -2110,6 +2169,21 @@ class _SettingsPageState extends State<SettingsPage> {
                   onTap: _loading ? null : _exportBackup,
                 ),
               ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Card(
+            elevation: 0,
+            color: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+            child: ListTile(
+              enabled: _hasImportedKitab && !_loading,
+              leading: Icon(Icons.delete_forever_rounded, color: _hasImportedKitab ? Colors.red.shade700 : muted),
+              title: Text('Hapus kitab impor', style: TextStyle(fontWeight: FontWeight.w800, color: _hasImportedKitab ? Colors.red.shade700 : muted)),
+              subtitle: Text(_hasImportedKitab
+                  ? 'Wajib mengetik “hapus” lalu “yakin”. Kitab bawaan akan dipulihkan.'
+                  : 'Tidak ada kitab impor yang tersimpan.'),
+              onTap: _hasImportedKitab && !_loading ? _deleteImportedKitab : null,
             ),
           ),
         ],
