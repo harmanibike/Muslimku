@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:audioplayers/audioplayers.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tzdata;
 import 'package:timezone/timezone.dart' as tz;
@@ -24,7 +25,17 @@ class AzanNotificationService {
   static const int _firstPrayerId = 100;
   static const int _testNotificationId = 999;
   static final AudioPlayer _testPlayer = AudioPlayer();
+  static const MethodChannel _systemChannel = MethodChannel('muslimku/system');
   static bool _initialized = false;
+
+  static Future<void> requestBackgroundExecution() async {
+    try {
+      await _systemChannel.invokeMethod('requestBatteryOptimizationExemption');
+    } on PlatformException {
+      // Perangkat yang tidak menyediakan pengaturan ini tetap memakai alarm
+      // terjadwal normal dari flutter_local_notifications.
+    }
+  }
 
   static Future<void> init() async {
     if (_initialized) return;

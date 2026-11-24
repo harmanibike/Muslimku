@@ -2347,7 +2347,7 @@ class _ReminderPageState extends State<ReminderPage> {
           const InfoCard(
             icon: Icons.notifications_active_rounded,
             title: 'Pengaturan notifikasi azan',
-            text: 'Notifikasi dan suara azan dijadwalkan setiap hari dari waktu salat terakhir yang dimuat.',
+            text: 'Notifikasi dan suara azan dijadwalkan setiap hari dari waktu salat terakhir yang dimuat. Izinkan Muslimku berjalan di latar belakang agar tetap berbunyi saat aplikasi ditutup.',
           ),
           const SizedBox(height: 12),
           Card(
@@ -2384,6 +2384,19 @@ class _ReminderPageState extends State<ReminderPage> {
             onPressed: () => _testAzan(isSubuh: true),
             icon: const Icon(Icons.wb_twilight_rounded),
             label: const Text('Uji suara azan Subuh'),
+            style: OutlinedButton.styleFrom(foregroundColor: green, side: const BorderSide(color: green)),
+          ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            onPressed: () async {
+              await AzanNotificationService.requestBackgroundExecution();
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('Pengaturan berjalan di latar belakang dibuka.'),
+              ));
+            },
+            icon: const Icon(Icons.battery_saver_rounded),
+            label: const Text('Izinkan azan saat aplikasi ditutup'),
             style: OutlinedButton.styleFrom(foregroundColor: green, side: const BorderSide(color: green)),
           ),
           const SizedBox(height: 8),
