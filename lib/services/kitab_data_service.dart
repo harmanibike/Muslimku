@@ -12,14 +12,15 @@ import '../data/kitab_data.dart';
 class KitabDataService {
   static const _assetPath = 'assets/data/kitab/kitab.json';
   static const _importedFileName = 'kitab_imported.json';
+  static const _defaultFileName = 'kitab_default.json';
+  static const _backupFileName = 'kitab_imported.json.bak';
   static List<KitabBab>? _cache;
 
   static Future<List<KitabBab>> load() async {
     if (_cache != null) return _cache!;
     final imported = await _importedFile();
-    final raw = imported != null
-        ? await imported.readAsString()
-        : await rootBundle.loadString(_assetPath);
+    final source = imported ?? await _defaultFile();
+    final raw = await source.readAsString();
     _cache = _parseBooks(jsonDecode(raw));
     return _cache!;
   }
@@ -40,7 +41,23 @@ class KitabDataService {
   static Future<File?> _importedFile() async {
     final dir = await getApplicationDocumentsDirectory();
     final file = File('${dir.path}/$_importedFileName');
-    return file.existsSync() ? file : null;
+    if (file.existsSync()) return file;
+    final backup = File('${dir.path}/$_backupFileName');
+    if (backup.existsSync()) {
+      await backup.copy(file.path);
+      return file;
+    }
+    return null;
+  }
+
+  static Future<File> _defaultFile() async {
+    final dir = await getApplicationDocumentsDirectory();
+    final file = File('${dir.path}/$_defaultFileName');
+    if (!file.existsSync()) {
+      final bundled = await rootBundle.loadString(_assetPath);
+      await file.writeAsString(bundled, flush: true);
+    }
+    return file;
   }
 
   static Future<bool> hasImportedKitab() async => (await _importedFile()) != null;
@@ -61,6 +78,9 @@ class KitabDataService {
         : Map<String, dynamic>.from(decoded as Map);
     final dir = await getApplicationDocumentsDirectory();
     final target = File('${dir.path}/$_importedFileName');
+    if (await target.exists()) {
+      await target.copy('${dir.path}/$_backupFileName');
+    }
     final temp = File('${target.path}.tmp');
     await temp.writeAsString(jsonEncode({
       'format': 'muslimku-kitab',
