@@ -2329,7 +2329,7 @@ class _ReminderPageState extends State<ReminderPage> {
       await AzanNotificationService.testAzan(isSubuh: isSubuh);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Suara azan sedang diputar. Periksa volume media perangkat.'),
+        content: Text('Notifikasi azan sedang diuji. Periksa volume Alarm/Notifikasi perangkat.'),
       ));
     } catch (e) {
       if (!mounted) return;

@@ -8,13 +8,14 @@ class AzanNotificationService {
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
 
-  // v2 penting: suara pada notification channel Android bersifat immutable
-  // setelah channel pertama kali dibuat.
-  static const String _channelId = 'muslimku_azan_v3';
+  // Suara dan volume pada notification channel Android bersifat immutable
+  // setelah channel pertama kali dibuat. Naikkan versi ID ketika mengganti
+  // file suara atau atribut audio agar instalasi lama membuat channel baru.
+  static const String _channelId = 'muslimku_azan_v4';
   static const String _channelName = 'Notifikasi Azan';
   static const String _channelDesc =
       'Pengingat waktu salat Zuhur, Asar, Magrib, dan Isya';
-  static const String _subuhChannelId = 'muslimku_azan_subuh_v3';
+  static const String _subuhChannelId = 'muslimku_azan_subuh_v4';
   static const String _subuhChannelName = 'Notifikasi Azan Subuh';
   static const String _subuhChannelDesc =
       'Pengingat waktu salat Subuh dengan suara azan Subuh';
